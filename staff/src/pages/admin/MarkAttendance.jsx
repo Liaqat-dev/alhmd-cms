@@ -346,14 +346,14 @@ export default function AdminMarkAttendance() {
                 {attendance.map((student, index) => (
                   <div
                     key={student.studentId}
-                    className={`flex items-center gap-4 p-3.5 rounded-xl border transition-colors ${
+                    className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3.5 rounded-xl border transition-colors ${
                       student.status === 'PRESENT' ? 'bg-emerald-50/50 border-emerald-200/60'
                       : student.status === 'ABSENT' ? 'bg-rose-50/50 border-rose-200/60'
                       : student.status === 'LEAVE' ? 'bg-amber-50/50 border-amber-200/60'
                       : 'bg-card border-border'
                     }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="flex items-center gap-3 min-w-0 sm:flex-1">
                       <div className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
                         student.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-700'
                         : student.status === 'ABSENT' ? 'bg-rose-100 text-rose-700'
