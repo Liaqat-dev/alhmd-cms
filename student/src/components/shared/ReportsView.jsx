@@ -541,7 +541,7 @@ export default function ReportsView({availableClasses = [], canGenerate = false,
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-2">
-                                        Present: {selectedReport.report.totalPresent} | Absent: {selectedReport.report.totalAbsent} | Late: {selectedReport.report.totalLate}
+                                        Present: {selectedReport.report.totalPresent} | Absent: {selectedReport.report.totalAbsent} | Leave: {selectedReport.report.totalLeave}
                                     </p>
                                 </div>
                                 <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
@@ -578,14 +578,6 @@ export default function ReportsView({availableClasses = [], canGenerate = false,
                                             <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b">
                                                 <span className="font-semibold text-sm">{subj.subjectName}</span>
                                                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                                    <span>
-                                                        <span className="font-medium text-foreground">
-                                                            {subj.attendance.present}P / {subj.attendance.absent}A / {subj.attendance.late}L
-                                                        </span>
-                                                        {subj.attendancePercentage && (
-                                                            <span className="ml-1 text-foreground font-medium">({subj.attendancePercentage}%)</span>
-                                                        )}
-                                                    </span>
                                                     {subj.percentage && (
                                                         <span className={`font-semibold ${Number(subj.percentage) >= 50 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                                             {subj.percentage}%

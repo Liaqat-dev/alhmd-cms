@@ -32,11 +32,11 @@ async function getAttendanceStats(studentId, startDate, endDate) {
 
     const totalWorkingDays = attendances.length;
     const totalPresent = attendances.filter(a => a.status === 'PRESENT').length;
-    const totalLate = attendances.filter(a => a.status === 'LATE').length;
     const totalAbsent = attendances.filter(a => a.status === 'ABSENT').length;
-    const attendancePercentage = totalWorkingDays > 0 ? (totalPresent + totalLate) / totalWorkingDays * 100 : 0;
+    const totalLeave = attendances.filter(a => a.status === 'LEAVE').length;
+    const attendancePercentage = totalWorkingDays > 0 ? (totalPresent / totalWorkingDays) * 100 : 0;
 
-    return {totalWorkingDays, totalPresent, totalLate, totalAbsent, attendancePercentage};
+    return {totalWorkingDays, totalPresent, totalAbsent, totalLeave, attendancePercentage};
 }
 
 // Computes marks stats for a student in a date range
@@ -161,7 +161,7 @@ const generateStudentReport = catchAsync(async (req, res) => {
         attendancePercentage: parseFloat(attendance.attendancePercentage.toFixed(2)),
         totalPresent: attendance.totalPresent,
         totalAbsent: attendance.totalAbsent,
-        totalLate: attendance.totalLate,
+        totalLeave: attendance.totalLeave,
         totalWorkingDays: attendance.totalWorkingDays,
         averageMarks: marksData.averageMarks !== null ? parseFloat(marksData.averageMarks.toFixed(2)) : null,
         totalExams: marksData.totalExams,
@@ -213,7 +213,7 @@ const generateClassReports = catchAsync(async (req, res) => {
                 attendancePercentage: attendance.attendancePercentage,
                 totalPresent: attendance.totalPresent,
                 totalAbsent: attendance.totalAbsent,
-                totalLate: attendance.totalLate,
+                totalLeave: attendance.totalLeave,
                 totalWorkingDays: attendance.totalWorkingDays,
                 averageMarks: marksData.averageMarks,
                 totalExams: marksData.totalExams,

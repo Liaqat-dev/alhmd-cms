@@ -150,8 +150,10 @@ export const attendanceAPI = {
   getStudentAttendance: (studentId, params) => api.get(`/attendance/student/${studentId}`, { params }),
   getMyAttendance: (params) => api.get('/attendance/my-attendance', { params }),
   getClassGrid: (classId, params) => api.get(`/attendance/class/${classId}/grid`, { params }),
+  markTeachers: (data) => api.post('/attendance/mark-teachers', data),
+  getTeachersByDate: (params) => api.get('/attendance/teachers', { params }),
+  getTeacherReport: (params) => api.get('/attendance/teachers/report', { params }),
   getTeacherGrid: (params) => api.get('/attendance/teachers/grid', { params }),
-  getTeacherSummary: (params) => api.get('/attendance/teachers/summary', { params }),
 }
 
 // Subjects API

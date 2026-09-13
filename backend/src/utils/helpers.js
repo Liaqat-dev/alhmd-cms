@@ -26,7 +26,7 @@ const calculateAttendancePercentage = (attendances) => {
   if (!attendances || attendances.length === 0) return 0;
 
   const presentCount = attendances.filter(
-    a => a.status === 'PRESENT' || a.status === 'LATE'
+    a => a.status === 'PRESENT'
   ).length;
 
   return Math.round((presentCount / attendances.length) * 100);

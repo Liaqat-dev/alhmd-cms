@@ -33,7 +33,7 @@ const getAdminStats = catchAsync(async (req, res) => {
   const attendanceOverview = {
     present: todayAttendance.find(a => a.status === 'PRESENT')?._count.status || 0,
     absent:  todayAttendance.find(a => a.status === 'ABSENT')?._count.status  || 0,
-    late:    todayAttendance.find(a => a.status === 'LATE')?._count.status    || 0
+    leave:   todayAttendance.find(a => a.status === 'LEAVE')?._count.status   || 0
   };
 
   res.json({
@@ -115,7 +115,7 @@ const getTeacherStats = catchAsync(async (req, res) => {
         pending: Math.max(0, totalStudents - markedCount),
         present: todayAttendance.filter(a => a.status === 'PRESENT').length,
         absent:  todayAttendance.filter(a => a.status === 'ABSENT').length,
-        late:    todayAttendance.filter(a => a.status === 'LATE').length
+        leave:   todayAttendance.filter(a => a.status === 'LEAVE').length
       }
     },
     subjects: subjectClassPairs.map(p => ({
@@ -190,8 +190,8 @@ const getStudentDashboard = catchAsync(async (req, res) => {
   const total = attendances.length;
   const present = attendances.filter(a => a.status === 'PRESENT').length;
   const absent  = attendances.filter(a => a.status === 'ABSENT').length;
-  const late    = attendances.filter(a => a.status === 'LATE').length;
-  const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+  const leave   = attendances.filter(a => a.status === 'LEAVE').length;
+  const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
   // Get enrolled subject IDs from actual student enrollments
   const enrolledSubjectIds = studentSubjects.map(s => s.subjectId);
@@ -243,7 +243,7 @@ const getStudentDashboard = catchAsync(async (req, res) => {
     attendanceStats: {
       month: now.toLocaleString('default', { month: 'long' }),
       year: now.getFullYear(),
-      total, present, absent, late, percentage
+      total, present, absent, leave, percentage
     },
     timetable: todaysLectures,
     enrolledClasses: enrolledClasses

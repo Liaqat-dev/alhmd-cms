@@ -11,7 +11,7 @@ import {
   School,
   CheckCircle2,
   XCircle,
-  Clock,
+  Palmtree,
   TrendingUp,
   CalendarDays,
 } from 'lucide-react'
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
     ...(stats?.classStats?.map(c => c.studentCount) ?? [0])
   )
 
-  const attendance = stats?.stats?.todayAttendance ?? { present: 0, absent: 0, late: 0 }
+  const attendance = stats?.stats?.todayAttendance ?? { present: 0, absent: 0, leave: 0 }
 
   return (
     <DashboardLayout title="Dashboard">
@@ -212,11 +212,11 @@ export default function AdminDashboard() {
                 <span className="text-xs text-gray-400 dark:text-dark-500">Absent</span>
               </span>
               <span className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-amber-500" />
+                <Palmtree className="h-4 w-4 text-amber-500" />
                 <span className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-                  {attendance.late}
+                  {attendance.leave}
                 </span>
-                <span className="text-xs text-gray-400 dark:text-dark-500">Late</span>
+                <span className="text-xs text-gray-400 dark:text-dark-500">Leave</span>
               </span>
             </div>
           </StatCard>

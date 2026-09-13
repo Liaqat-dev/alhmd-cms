@@ -29,7 +29,7 @@ const DAY_ABBR = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const STATUS_CFG = {
     PRESENT: { label: 'P', cell: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300' },
     ABSENT: { label: 'A', cell: 'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300' },
-    LATE: { label: 'L', cell: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' },
+    LEAVE: { label: 'L', cell: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300' },
 }
 
 function pctColor(pct) {
@@ -138,7 +138,7 @@ export default function AttendanceRegister() {
             return `${abbr} ${day}`
         })
 
-        const header = ['#', 'Student ID', 'Student', 'Roll No', ...dateHeaders, 'Present', 'Absent', 'Late', 'Attendance %']
+        const header = ['#', 'Student ID', 'Student', 'Roll No', ...dateHeaders, 'Present', 'Absent', 'Leave', 'Attendance %']
 
         const rows = gridData.students.map((s, i) => [
             i + 1,
@@ -148,7 +148,7 @@ export default function AttendanceRegister() {
             ...gridData.dates.map(d => s.records[d] ? STATUS_CFG[s.records[d]].label : ''),
             s.stats.present,
             s.stats.absent,
-            s.stats.late,
+            s.stats.leave,
             s.stats.total > 0 ? `${s.stats.percentage}%` : '',
         ])
 
@@ -382,7 +382,7 @@ export default function AttendanceRegister() {
                                                         <span className="text-xs font-semibold tabular-nums text-rose-600 dark:text-rose-400">{student.stats.absent}</span>
                                                     </td>
                                                     <td className="px-2 py-2 text-center">
-                                                        <span className="text-xs font-semibold tabular-nums text-amber-600 dark:text-amber-400">{student.stats.late}</span>
+                                                        <span className="text-xs font-semibold tabular-nums text-amber-600 dark:text-amber-400">{student.stats.leave}</span>
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         {student.stats.total > 0 ? (

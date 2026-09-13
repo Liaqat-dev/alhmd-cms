@@ -7,7 +7,7 @@ import {Label} from '@/components/ui/label'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select'
 import {attendanceAPI, teachersAPI, timetableAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
-import {CalendarDays, CheckCircle, Clock, Save, UserCheck, Users, UserX, XCircle} from 'lucide-react'
+import {CalendarDays, CheckCircle, Palmtree, Save, UserCheck, Users, UserX, XCircle} from 'lucide-react'
 
 const JS_DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -175,7 +175,7 @@ export default function TeacherAttendance() {
     const selectedClass = myClasses.find(c => c.classId === selectedClassId)
     const presentCount = attendance.filter(a => a.status === 'PRESENT').length
     const absentCount = attendance.filter(a => a.status === 'ABSENT').length
-    const lateCount = attendance.filter(a => a.status === 'LATE').length
+    const leaveCount = attendance.filter(a => a.status === 'LEAVE').length
     const unmarkedCount = attendance.filter(a => !a.status).length
 
     // Current month label for the cards section
@@ -324,11 +324,11 @@ export default function TeacherAttendance() {
                         </div>
                         <div className="flex items-center gap-3 p-3.5 card">
                             <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                                <Clock className="h-5 w-5 text-amber-600"/>
+                                <Palmtree className="h-5 w-5 text-amber-600"/>
                             </div>
                             <div>
-                                <p className="text-xs text-muted-foreground font-medium">Late</p>
-                                <p className="text-xl font-bold text-amber-700">{lateCount}</p>
+                                <p className="text-xs text-muted-foreground font-medium">Leave</p>
+                                <p className="text-xl font-bold text-amber-700">{leaveCount}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-3 p-3.5 card">
@@ -422,7 +422,7 @@ export default function TeacherAttendance() {
                                                 ? 'bg-emerald-50/50 border-emerald-200/60'
                                                 : student.status === 'ABSENT'
                                                     ? 'bg-rose-50/50 border-rose-200/60'
-                                                    : student.status === 'LATE'
+                                                    : student.status === 'LEAVE'
                                                         ? 'bg-amber-50/50 border-amber-200/60'
                                                         : 'bg-card border-border'
                                         }`}
@@ -434,7 +434,7 @@ export default function TeacherAttendance() {
                                                         ? 'bg-emerald-100 text-emerald-700'
                                                         : student.status === 'ABSENT'
                                                             ? 'bg-rose-100 text-rose-700'
-                                                            : student.status === 'LATE'
+                                                            : student.status === 'LEAVE'
                                                                 ? 'bg-amber-100 text-amber-700'
                                                                 : 'bg-muted text-muted-foreground'
                                                 }`}>
@@ -494,14 +494,14 @@ export default function TeacherAttendance() {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => updateStatus(student.studentId, 'LATE')}
+                                                    onClick={() => updateStatus(student.studentId, 'LEAVE')}
                                                     className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
-                                                        student.status === 'LATE'
+                                                        student.status === 'LEAVE'
                                                             ? 'bg-amber-500 text-white shadow-sm shadow-amber-200'
                                                             : 'bg-background border border-border hover:border-amber-300 hover:bg-amber-50 text-muted-foreground hover:text-amber-600'
                                                     }`}
                                                 >
-                                                    <Clock className="h-4 w-4"/>
+                                                    <Palmtree className="h-4 w-4"/>
                                                 </button>
                                             </div>
                                         )}

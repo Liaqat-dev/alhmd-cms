@@ -25,6 +25,7 @@ import AdminAttendanceRegister from './pages/admin/AttendanceRegister'
 import TeacherAttendanceRegister from './pages/admin/AttendanceRegister'
 import AdminTeacherAttendance from './pages/admin/TeacherAttendance'
 import AdminMarkAttendance from './pages/admin/MarkAttendance'
+import MarkTeacherAttendance from './pages/admin/MarkTeacherAttendance'
 import AdminProfile from './pages/admin/Profile'
 import AdminUsers from './pages/admin/Users'
 import AdminRoles from './pages/admin/Roles'
@@ -266,6 +267,14 @@ function App() {
           }
         />
         <Route
+          path="/admin/mark-teacher-attendance"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <MarkTeacherAttendance />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/profile"
           element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
@@ -320,6 +329,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['TEACHER']}>
               <TeacherAttendanceRegister />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/mark-teacher-attendance"
+          element={
+            <ProtectedRoute allowedRoles={['TEACHER']}>
+              <MarkTeacherAttendance />
             </ProtectedRoute>
           }
         />

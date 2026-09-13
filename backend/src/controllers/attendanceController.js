@@ -2,6 +2,8 @@ const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 
+// ── Student attendance (per class, per day) ───────────────────────────────────
+
 // POST /attendance/mark — attendance is recorded per class: every student
 // actively enrolled in the class gets one record per day.
 const markAttendance = catchAsync(async (req, res) => {
@@ -73,30 +75,6 @@ const markAttendance = catchAsync(async (req, res) => {
     }
   }
 
-  // Auto-mark the marking teacher as PRESENT for this class today
-  if (teacherId && results.length > 0) {
-    try {
-      await prisma.morningTeacherAttendance.upsert({
-        where: {
-          teacherId_morningClassId_date: {
-            teacherId,
-            morningClassId: classId,
-            date: attendanceDate
-          }
-        },
-        update: { status: 'PRESENT' },
-        create: {
-          teacherId,
-          morningClassId: classId,
-          date: attendanceDate,
-          status: 'PRESENT'
-        }
-      });
-    } catch (err) {
-      console.error('Failed to mark teacher attendance:', err);
-    }
-  }
-
   res.json({ message: 'Attendance marked successfully', count: results.length, attendances: results });
 });
 
@@ -162,10 +140,10 @@ const getStudentAttendance = catchAsync(async (req, res) => {
   const total = attendances.length;
   const present = attendances.filter(a => a.status === 'PRESENT').length;
   const absent = attendances.filter(a => a.status === 'ABSENT').length;
-  const late = attendances.filter(a => a.status === 'LATE').length;
-  const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+  const leave = attendances.filter(a => a.status === 'LEAVE').length;
+  const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
-  res.json({ attendances, stats: { total, present, absent, late, percentage } });
+  res.json({ attendances, stats: { total, present, absent, leave, percentage } });
 });
 
 const getClassAttendanceReport = catchAsync(async (req, res) => {
@@ -201,13 +179,13 @@ const getClassAttendanceReport = catchAsync(async (req, res) => {
     const total = records.length;
     const present = records.filter(a => a.status === 'PRESENT').length;
     const absent = records.filter(a => a.status === 'ABSENT').length;
-    const late = records.filter(a => a.status === 'LATE').length;
-    const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+    const leave = records.filter(a => a.status === 'LEAVE').length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
     return {
       studentId: student.id,
       name: student.name,
       rollNumber: student.rollNumber,
-      total, present, absent, late, percentage
+      total, present, absent, leave, percentage
     };
   });
 
@@ -246,14 +224,13 @@ const getClassAttendanceGrid = catchAsync(async (req, res) => {
     return `${y}-${m}-${day}`;
   };
 
-  // Collect unique dates with records
   const dateSet = new Set();
   for (const a of allAttendances) {
     dateSet.add(toDateKey(a.date));
   }
   const dates = Array.from(dateSet).sort();
 
-  // One record per student per day now (attendance is per class, not per subject)
+  // One record per student per day (attendance is per class, not per subject)
   const byStudent = new Map();
   for (const a of allAttendances) {
     if (!byStudent.has(a.studentId)) byStudent.set(a.studentId, {});
@@ -266,14 +243,14 @@ const getClassAttendanceGrid = catchAsync(async (req, res) => {
     const total = statuses.length;
     const present = statuses.filter(s => s === 'PRESENT').length;
     const absent = statuses.filter(s => s === 'ABSENT').length;
-    const late = statuses.filter(s => s === 'LATE').length;
-    const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+    const leave = statuses.filter(s => s === 'LEAVE').length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
     return {
       studentId: student.id,
       name: student.name,
       rollNumber: student.rollNumber,
       records,
-      stats: { total, present, absent, late, percentage },
+      stats: { total, present, absent, leave, percentage },
     };
   });
 
@@ -303,78 +280,118 @@ const getMyAttendance = catchAsync(async (req, res) => {
   const total = attendances.length;
   const present = attendances.filter(a => a.status === 'PRESENT').length;
   const absent = attendances.filter(a => a.status === 'ABSENT').length;
-  const late = attendances.filter(a => a.status === 'LATE').length;
-  const percentage = total > 0 ? Math.round(((present + late) / total) * 100) : 0;
+  const leave = attendances.filter(a => a.status === 'LEAVE').length;
+  const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
-  res.json({ month: monthNum, year: yearNum, attendances, stats: { total, present, absent, late, percentage } });
+  res.json({ month: monthNum, year: yearNum, attendances, stats: { total, present, absent, leave, percentage } });
 });
 
-// GET /attendance/teachers/summary — for each teacher, per-class presence
-// this month, derived from the classes they're assigned a subject in.
-const getTeacherAttendanceSummary = catchAsync(async (req, res) => {
-  const { month, year } = req.query;
-  const monthNum = parseInt(month) || new Date().getMonth() + 1;
-  const yearNum  = parseInt(year)  || new Date().getFullYear();
-  const startDate = new Date(yearNum, monthNum - 1, 1);
-  const endDate   = new Date(yearNum, monthNum, 0);
-  endDate.setHours(23, 59, 59, 999);
+// ── Teacher attendance (every teacher, per day — no class involved) ──────────
+
+// POST /attendance/mark-teachers
+const markTeacherAttendance = catchAsync(async (req, res) => {
+  const { date, attendances } = req.body;
+
+  if (!date || !attendances || !Array.isArray(attendances)) {
+    throw new AppError(400, { message: 'Date and attendances array are required' });
+  }
+
+  const attendanceDate = new Date(date);
+  attendanceDate.setHours(0, 0, 0, 0);
+
+  const results = [];
+
+  for (const record of attendances) {
+    const { teacherId, status } = record;
+    if (!teacherId || !status) continue;
+
+    try {
+      const attendance = await prisma.morningTeacherAttendance.upsert({
+        where: { teacherId_date: { teacherId, date: attendanceDate } },
+        update: { status, markedBy: req.user.id },
+        create: { teacherId, date: attendanceDate, status, markedBy: req.user.id },
+        include: { teacher: { select: { id: true, name: true } } }
+      });
+      results.push(attendance);
+    } catch (err) {
+      console.error(`Failed to mark attendance for teacher ${teacherId}:`, err);
+    }
+  }
+
+  res.json({ message: 'Teacher attendance marked successfully', count: results.length, attendances: results });
+});
+
+// GET /attendance/teachers — every teacher, with their status for the given date
+const getTeacherAttendanceByDate = catchAsync(async (req, res) => {
+  const { date } = req.query;
+
+  const attendanceDate = date ? new Date(date) : new Date();
+  attendanceDate.setHours(0, 0, 0, 0);
 
   const teachers = await prisma.teacher.findMany({
-    where: { morningSubjects: { some: {} } },
-    select: {
-      id: true, name: true,
-      morningSubjects: {
-        select: {
-          subject: {
-            select: { classes: { select: { id: true, name: true } } }
-          }
-        }
-      }
-    },
+    select: { id: true, name: true },
     orderBy: { name: 'asc' }
   });
 
-  // Distinct classes each teacher touches, via any subject assignment
-  const teacherClassMap = new Map();
-  teachers.forEach(t => {
-    const m = new Map();
-    t.morningSubjects.forEach(ms => (ms.subject.classes || []).forEach(c => m.set(c.id, c.name)));
-    teacherClassMap.set(t.id, m);
+  const records = await prisma.morningTeacherAttendance.findMany({
+    where: { teacherId: { in: teachers.map(t => t.id) }, date: attendanceDate }
   });
-  const classIds = [...new Set(teachers.flatMap(t => [...teacherClassMap.get(t.id).keys()]))];
+  const statusMap = new Map(records.map(r => [r.teacherId, r.status]));
 
-  const [taRecords, saRecords] = await Promise.all([
-    prisma.morningTeacherAttendance.groupBy({
-      by: ['teacherId', 'morningClassId'],
-      where: { date: { gte: startDate, lte: endDate }, morningClassId: { in: classIds } },
-      _count: { id: true }
-    }),
-    prisma.morningAttendance.findMany({
-      where: { morningClassId: { in: classIds }, date: { gte: startDate, lte: endDate } },
-      select: { morningClassId: true, date: true },
-      distinct: ['morningClassId', 'date']
-    })
-  ]);
+  const attendance = teachers.map(t => ({
+    teacherId: t.id,
+    name: t.name,
+    status: statusMap.get(t.id) || null
+  }));
 
-  const presentsMap = new Map(taRecords.map(r => [`${r.teacherId}:${r.morningClassId}`, r._count.id]));
-  const lecturesMap = new Map();
-  for (const r of saRecords) {
-    lecturesMap.set(r.morningClassId, (lecturesMap.get(r.morningClassId) || 0) + 1);
-  }
-
-  res.json(teachers.map(t => ({
-    teacherId: t.id, name: t.name,
-    classes: [...teacherClassMap.get(t.id).entries()].map(([classId, className]) => ({
-      classId,
-      className,
-      presents: presentsMap.get(`${t.id}:${classId}`) || 0,
-      totalLectures: lecturesMap.get(classId) || 0
-    }))
-  })));
+  res.json({ date: attendanceDate, attendance });
 });
 
+// GET /attendance/teachers/report — monthly per-teacher present/absent/leave totals
+const getTeacherAttendanceReport = catchAsync(async (req, res) => {
+  const { month, year } = req.query;
+
+  const monthNum = parseInt(month) || new Date().getMonth() + 1;
+  const yearNum = parseInt(year) || new Date().getFullYear();
+
+  const startDate = new Date(yearNum, monthNum - 1, 1);
+  const endDate = new Date(yearNum, monthNum, 0);
+
+  const teachers = await prisma.teacher.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  });
+
+  const allAttendances = await prisma.morningTeacherAttendance.findMany({
+    where: { teacherId: { in: teachers.map(t => t.id) }, date: { gte: startDate, lte: endDate } }
+  });
+
+  const byTeacher = new Map();
+  for (const a of allAttendances) {
+    if (!byTeacher.has(a.teacherId)) byTeacher.set(a.teacherId, []);
+    byTeacher.get(a.teacherId).push(a);
+  }
+
+  const report = teachers.map(teacher => {
+    const records = byTeacher.get(teacher.id) || [];
+    const total = records.length;
+    const present = records.filter(a => a.status === 'PRESENT').length;
+    const absent = records.filter(a => a.status === 'ABSENT').length;
+    const leave = records.filter(a => a.status === 'LEAVE').length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+    return {
+      teacherId: teacher.id,
+      name: teacher.name,
+      total, present, absent, leave, percentage
+    };
+  });
+
+  res.json({ month: monthNum, year: yearNum, report });
+});
+
+// GET /attendance/teachers/grid — monthly per-day grid across all teachers
 const getTeacherAttendanceGrid = catchAsync(async (req, res) => {
-  const { month, year, teacherId } = req.query;
+  const { month, year } = req.query;
 
   const monthNum = parseInt(month) || new Date().getMonth() + 1;
   const yearNum = parseInt(year) || new Date().getFullYear();
@@ -383,51 +400,50 @@ const getTeacherAttendanceGrid = catchAsync(async (req, res) => {
   const endDate = new Date(yearNum, monthNum, 0);
   endDate.setHours(23, 59, 59, 999);
 
-  const where = { date: { gte: startDate, lte: endDate } };
-  if (teacherId) where.teacherId = teacherId;
+  const teachers = await prisma.teacher.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  });
 
-  const records = await prisma.morningTeacherAttendance.findMany({
-    where,
-    include: {
-      teacher: { select: { id: true, name: true } },
-    },
+  const allAttendances = await prisma.morningTeacherAttendance.findMany({
+    where: { teacherId: { in: teachers.map(t => t.id) }, date: { gte: startDate, lte: endDate } },
     orderBy: { date: 'asc' }
   });
 
-  // Collect unique dates
+  const toDateKey = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   const dateSet = new Set();
-  for (const r of records) {
-    dateSet.add(r.date.toISOString().split('T')[0]);
-  }
+  for (const a of allAttendances) dateSet.add(toDateKey(a.date));
   const dates = Array.from(dateSet).sort();
 
-  // Group by teacher
-  const teacherMap = new Map();
-  for (const r of records) {
-    const tid = r.teacherId;
-    if (!teacherMap.has(tid)) {
-      teacherMap.set(tid, { teacherId: tid, name: r.teacher.name, records: {} });
-    }
-    const dateKey = r.date.toISOString().split('T')[0];
-    // Keep PRESENT over anything else if multiple classes same day
-    if (!teacherMap.get(tid).records[dateKey]) {
-      teacherMap.get(tid).records[dateKey] = r.status;
-    }
+  const byTeacher = new Map();
+  for (const a of allAttendances) {
+    if (!byTeacher.has(a.teacherId)) byTeacher.set(a.teacherId, {});
+    byTeacher.get(a.teacherId)[toDateKey(a.date)] = a.status;
   }
 
-  const teachers = Array.from(teacherMap.values()).map(t => {
-    const statuses = Object.values(t.records);
+  const teacherRows = teachers.map(teacher => {
+    const records = byTeacher.get(teacher.id) || {};
+    const statuses = Object.values(records);
+    const total = statuses.length;
     const present = statuses.filter(s => s === 'PRESENT').length;
+    const absent = statuses.filter(s => s === 'ABSENT').length;
+    const leave = statuses.filter(s => s === 'LEAVE').length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
     return {
-      ...t,
-      stats: { total: statuses.length, present, percentage: statuses.length > 0 ? Math.round((present / statuses.length) * 100) : 0 }
+      teacherId: teacher.id,
+      name: teacher.name,
+      records,
+      stats: { total, present, absent, leave, percentage },
     };
   });
 
-  // Sort by name
-  teachers.sort((a, b) => a.name.localeCompare(b.name));
-
-  res.json({ month: monthNum, year: yearNum, dates, teachers });
+  res.json({ month: monthNum, year: yearNum, dates, teachers: teacherRows });
 });
 
 module.exports = {
@@ -437,6 +453,8 @@ module.exports = {
   getClassAttendanceReport,
   getClassAttendanceGrid,
   getMyAttendance,
-  getTeacherAttendanceSummary,
+  markTeacherAttendance,
+  getTeacherAttendanceByDate,
+  getTeacherAttendanceReport,
   getTeacherAttendanceGrid,
 };

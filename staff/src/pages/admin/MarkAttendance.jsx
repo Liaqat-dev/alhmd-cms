@@ -9,7 +9,7 @@ import {
 import { attendanceAPI, timetableAPI } from '@/services/api'
 import { useClasses } from '@/hooks/useClasses'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle, XCircle, Clock, Save, Users, CalendarDays, UserCheck, UserX } from 'lucide-react'
+import { CheckCircle, XCircle, Palmtree, Save, Users, CalendarDays, UserCheck, UserX } from 'lucide-react'
 
 const JS_DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -141,7 +141,7 @@ export default function AdminMarkAttendance() {
   const selectedClass = classes.find(c => c.id === selectedClassId)
   const presentCount = attendance.filter(a => a.status === 'PRESENT').length
   const absentCount = attendance.filter(a => a.status === 'ABSENT').length
-  const lateCount = attendance.filter(a => a.status === 'LATE').length
+  const leaveCount = attendance.filter(a => a.status === 'LEAVE').length
   const unmarkedCount = attendance.filter(a => !a.status).length
 
   return (
@@ -261,7 +261,7 @@ export default function AdminMarkAttendance() {
             {[
               { label: 'Present', count: presentCount, icon: UserCheck, color: 'emerald' },
               { label: 'Absent',  count: absentCount,  icon: UserX,    color: 'rose' },
-              { label: 'Late',    count: lateCount,    icon: Clock,    color: 'amber' },
+              { label: 'Leave',   count: leaveCount,   icon: Palmtree, color: 'amber' },
               { label: 'Total',   count: attendance.length, icon: Users, color: 'muted' },
             ].map(({ label, count, icon: Icon, color }) => (
               <div key={label} className="flex items-center gap-3 p-3.5 card">
@@ -349,7 +349,7 @@ export default function AdminMarkAttendance() {
                     className={`flex items-center gap-4 p-3.5 rounded-xl border transition-colors ${
                       student.status === 'PRESENT' ? 'bg-emerald-50/50 border-emerald-200/60'
                       : student.status === 'ABSENT' ? 'bg-rose-50/50 border-rose-200/60'
-                      : student.status === 'LATE' ? 'bg-amber-50/50 border-amber-200/60'
+                      : student.status === 'LEAVE' ? 'bg-amber-50/50 border-amber-200/60'
                       : 'bg-card border-border'
                     }`}
                   >
@@ -357,7 +357,7 @@ export default function AdminMarkAttendance() {
                       <div className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
                         student.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-700'
                         : student.status === 'ABSENT' ? 'bg-rose-100 text-rose-700'
-                        : student.status === 'LATE' ? 'bg-amber-100 text-amber-700'
+                        : student.status === 'LEAVE' ? 'bg-amber-100 text-amber-700'
                         : 'bg-muted text-muted-foreground'
                       }`}>
                         {index + 1}
@@ -391,7 +391,7 @@ export default function AdminMarkAttendance() {
                         {[
                           { s: 'PRESENT', icon: CheckCircle, active: 'bg-emerald-500 text-white shadow-sm shadow-emerald-200', hover: 'hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600' },
                           { s: 'ABSENT',  icon: XCircle,    active: 'bg-rose-500 text-white shadow-sm shadow-rose-200',   hover: 'hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600' },
-                          { s: 'LATE',    icon: Clock,      active: 'bg-amber-500 text-white shadow-sm shadow-amber-200', hover: 'hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600' },
+                          { s: 'LEAVE',   icon: Palmtree,      active: 'bg-amber-500 text-white shadow-sm shadow-amber-200', hover: 'hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600' },
                         ].map(({ s, icon: Icon, active, hover }) => (
                           <button
                             key={s}

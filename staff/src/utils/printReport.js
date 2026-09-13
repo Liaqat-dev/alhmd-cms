@@ -217,7 +217,7 @@ export function printReport(report, subjects = []) {
     <div class="stat blue">
       <div class="stat-label">Attendance</div>
       <div class="stat-value">${attPct.toFixed(1)}%</div>
-      <div class="stat-sub">${report.totalPresent}P &bull; ${report.totalAbsent}A &bull; ${report.totalLate}L</div>
+      <div class="stat-sub">${report.totalPresent}P &bull; ${report.totalAbsent}A &bull; ${report.totalLeave}L</div>
       <div class="bar-wrap"><div class="bar-fill" style="width:${Math.min(attPct, 100)}%;background:${attPct >= 75 ? '#22c55e' : '#ef4444'};"></div></div>
     </div>
     <div class="stat green">
@@ -238,20 +238,13 @@ export function printReport(report, subjects = []) {
     </div>
     ${subjects.map(subj => {
         const sp = subj.percentage ? Number(subj.percentage) : null
-        const ap = subj.attendancePercentage ? Number(subj.attendancePercentage) : null
         return `
     <div class="subject-block">
       <div class="subject-head">
         <span class="subject-name">${className ? className + '-' : ''}${subj.subjectName}</span>
         <div class="subject-badges">
-          ${ap !== null ? `<span class="badge badge-white">Attendance ${ap}%</span>` : ''}
           ${sp !== null ? `<span class="badge ${sp >= 50 ? 'badge-green' : 'badge-red'}">${sp}%</span>` : ''}
         </div>
-      </div>
-      <div class="att-row">
-        <span>&#10003; Present: <strong class="att-p">${subj.attendance.present}</strong></span>
-        <span>&#10007; Absent: <strong class="att-a">${subj.attendance.absent}</strong></span>
-        <span>&#9711; Late: <strong class="att-l">${subj.attendance.late}</strong></span>
       </div>
       ${subj.exams.length > 0 ? `
       <table class="exam-table">

@@ -3,12 +3,12 @@ import { BookOpen, BarChart3 } from 'lucide-react'
 /* ── Overall summary bar ─────────────────────────────────────── */
 function OverallSummary({ stats }) {
     if (!stats) return null
-    const { present = 0, absent = 0, late = 0, total = 0 } = stats
+    const { present = 0, absent = 0, leave = 0, total = 0 } = stats
     if (total === 0) return null
 
     const items = [
         { label: 'Present', value: present, color: 'bg-emerald-500', textColor: 'text-emerald-600 dark:text-emerald-400' },
-        { label: 'Late', value: late, color: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
+        { label: 'Leave', value: leave, color: 'bg-amber-500', textColor: 'text-amber-600 dark:text-amber-400' },
         { label: 'Absent', value: absent, color: 'bg-rose-500', textColor: 'text-rose-600 dark:text-rose-400' },
     ]
 

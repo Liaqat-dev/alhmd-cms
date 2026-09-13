@@ -47,7 +47,6 @@ enum Availability {
 enum AttendanceStatus {
   PRESENT
   ABSENT
-  LATE
   LEAVE
 }
 
@@ -158,6 +157,7 @@ model User {
   generatedMorningSalaries MorningSalary[]        @relation("GeneratedByMorningSalary")
   createdExpenses          StudentExpense[]       @relation("CreatedByExpense")
   receivedPayments         PaymentHistory[]       @relation("ReceivedByPayment")
+  markedTeacherAttendances MorningTeacherAttendance[] @relation("MarkedTeacherAttendance")
 }
 
 // Belongs to exactly one of User (admin/teacher) or Student — never both.
@@ -353,9 +353,9 @@ model MorningClass {
   timetables  MorningTimetable[]
   exams       MorningExam[]
 
-  // Attendance is recorded per class, not per subject
-  attendances        MorningAttendance[]
-  teacherAttendances MorningTeacherAttendance[]
+  // Student attendance is recorded per class. Teacher attendance is no longer
+  // tied to a class at all — see MorningTeacherAttendance.
+  attendances MorningAttendance[]
 }
 
 model MorningSubject {
@@ -504,7 +504,7 @@ model MorningMonthlyReport {
   attendancePercentage Decimal
   totalPresent         Int
   totalAbsent          Int
-  totalLate            Int
+  totalLeave           Int      @default(0)
   totalWorkingDays     Int
   averageMarks         Decimal?
   totalExams           Int      @default(0)
@@ -521,19 +521,19 @@ model MorningMonthlyReport {
   @@index([generatedBy])
 }
 
-// A teacher is auto-marked present for a class on the day they take that
-// class's attendance — tracked per class now, matching student attendance.
+// Teacher attendance is marked explicitly (like student attendance) — one
+// record per teacher per day, not tied to any specific class.
 model MorningTeacherAttendance {
-  id             Int              @id @default(autoincrement())
-  teacherId      Int?
-  morningClassId Int
-  date           DateTime
-  status         AttendanceStatus @default(PRESENT)
-  teacher        Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  morningClass   MorningClass     @relation(fields: [morningClassId], references: [id], onDelete: Cascade)
-  createdAt      DateTime         @default(now())
+  id         Int              @id @default(autoincrement())
+  teacherId  Int?
+  date       DateTime
+  status     AttendanceStatus @default(PRESENT)
+  teacher    Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  markedBy   Int?
+  markedByUser User?          @relation("MarkedTeacherAttendance", fields: [markedBy], references: [id], onDelete: SetNull)
+  createdAt  DateTime         @default(now())
 
-  @@unique([teacherId, morningClassId, date])
+  @@unique([teacherId, date])
   @@index([teacherId])
   @@index([date])
 }
