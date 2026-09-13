@@ -185,7 +185,7 @@ const updateStatus = catchAsync(async (req, res) => {
         paymentMethod: paymentMethod || 'CASH',
         previousBalance: parseFloat(salary.totalSalary),
         newBalance: 0,
-        receivedBy: req.user.admin?.name || req.user.email,
+        receivedBy: req.user.id, // PaymentHistory.receivedBy is a FK to User.id
       },
     });
   }

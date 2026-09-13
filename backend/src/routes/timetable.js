@@ -3,11 +3,12 @@ const router = express.Router();
 const timetableController = require('../controllers/timetableController');
 const auth = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
+const requirePermission = require('../middleware/requirePermission');
 
 // All routes require authentication
 router.use(auth);
 
-// Get timetable for current user (based on role)
+// Get timetable for current user (based on role) — personal endpoint, no permission gate
 router.get('/my-timetable', (req, res, next) => {
   if (req.user.role === 'TEACHER') {
     return timetableController.getTeacherTimetable(req, res, next);
@@ -19,15 +20,15 @@ router.get('/my-timetable', (req, res, next) => {
 });
 
 // Get timetable by class (Admin, Teacher)
-router.get('/class/:classId', roleCheck('ADMIN', 'TEACHER'), timetableController.getTimetableByClass);
+router.get('/class/:classId', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.view'), timetableController.getTimetableByClass);
 
 // Get timetable by teacher (Admin only)
 router.get('/teacher/:teacherId', roleCheck('ADMIN'), timetableController.getTimetableByTeacher);
 
-// Admin only routes
-router.post('/', roleCheck('ADMIN'), timetableController.createTimetableEntry);
-router.put('/:id', roleCheck('ADMIN'), timetableController.updateTimetableEntry);
-router.delete('/:id', roleCheck('ADMIN'), timetableController.deleteTimetableEntry);
-router.delete('/class/:classId/clear', roleCheck('ADMIN'), timetableController.clearClassTimetable);
+// Admin always allowed; Teacher needs the matching permission via their role.
+router.post('/', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.create'), timetableController.createTimetableEntry);
+router.put('/:id', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.edit'), timetableController.updateTimetableEntry);
+router.delete('/:id', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.delete'), timetableController.deleteTimetableEntry);
+router.delete('/class/:classId/clear', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.delete'), timetableController.clearClassTimetable);
 
 module.exports = router;

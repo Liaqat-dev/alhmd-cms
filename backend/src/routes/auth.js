@@ -73,9 +73,11 @@ router.post('/resend-verification', verificationLimiter, authController.resendVe
 
 // Token refresh (uses httpOnly cookie, no Bearer token needed)
 router.post('/refresh-token', refreshLimiter, authController.refreshToken);
+router.post('/student-refresh-token', refreshLimiter, authController.studentRefreshToken);
 
 // Logout (cookie-based, no Bearer needed — best-effort revocation)
 router.post('/logout', authController.logout);
+router.post('/student-logout', authController.studentLogout);
 
 // Password reset (self-service, public)
 router.post('/forgot-password', forgotPasswordLimiter, authController.forgotPassword);

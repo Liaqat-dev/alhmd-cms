@@ -296,7 +296,11 @@ async function main() {
       create: p,
     });
   }
-  console.log('✓ Permissions:', PERMISSION_DEFS.length);
+  // Prune any permission from an older catalog shape (e.g. the retired
+  // combined "*.manage" permissions) so the catalog never drifts stale.
+  const currentNames = PERMISSION_DEFS.map(p => p.name);
+  const pruned = await prisma.permission.deleteMany({ where: { name: { notIn: currentNames } } });
+  console.log('✓ Permissions:', PERMISSION_DEFS.length, pruned.count > 0 ? `(pruned ${pruned.count} stale)` : '');
 
   const allPermissionIds = Object.values(permByName).map(p => ({ id: p.id }));
   // A regular teacher's everyday duties: full control over attendance/marks

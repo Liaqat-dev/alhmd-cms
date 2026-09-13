@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
   const silentRefresh = useCallback(async () => {
     try {
       const response = await axios.post(
-        `${BASE_URL}/auth/refresh-token`,
+        `${BASE_URL}/auth/student-refresh-token`,
         {},
         { withCredentials: true }
       )
@@ -60,7 +60,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      await axios.post(`${BASE_URL}/auth/logout`, {}, { withCredentials: true })
+      await axios.post(`${BASE_URL}/auth/student-logout`, {}, { withCredentials: true })
     } catch {
       // Best-effort revocation — always clear local state
     }

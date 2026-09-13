@@ -28,8 +28,17 @@ const generateAccessToken = (id, role) =>
 const generateRawRefreshToken = () =>
     crypto.randomBytes(64).toString('hex');
 
-const setRefreshCookie = (res, token) => {
-    res.cookie('refreshToken', token, {
+// The staff portal and student portal are separate frontends that both talk
+// to this same backend host — browsers scope cookies by host, not by the
+// calling page's origin/port. Using one cookie name for both would let
+// whichever app logs in last silently overwrite the other's session cookie
+// in the shared browser cookie jar. Distinct names keep the two fully
+// independent even though they share a backend.
+const REFRESH_COOKIE = 'refreshToken';
+const STUDENT_REFRESH_COOKIE = 'studentRefreshToken';
+
+const setRefreshCookie = (res, token, cookieName = REFRESH_COOKIE) => {
+    res.cookie(cookieName, token, {
         httpOnly: true,
         secure: true,
         sameSite: 'none',
@@ -38,8 +47,8 @@ const setRefreshCookie = (res, token) => {
     });
 };
 
-const clearRefreshCookie = (res) => {
-    res.clearCookie('refreshToken', {
+const clearRefreshCookie = (res, cookieName = REFRESH_COOKIE) => {
+    res.clearCookie(cookieName, {
         httpOnly: true,
         secure: true,
         sameSite: 'none',
@@ -134,7 +143,7 @@ const login = catchAsync(async (req, res) => {
         },
     });
 
-    setRefreshCookie(res, rawRefreshToken);
+    setRefreshCookie(res, rawRefreshToken, REFRESH_COOKIE);
 
     const {password: _pw, ...userWithoutPassword} = user;
 
@@ -178,7 +187,7 @@ const studentLogin = catchAsync(async (req, res) => {
         },
     });
 
-    setRefreshCookie(res, rawRefreshToken);
+    setRefreshCookie(res, rawRefreshToken, STUDENT_REFRESH_COOKIE);
 
     res.json({
         message: 'Login successful',
@@ -259,9 +268,13 @@ const resendVerification = catchAsync(async (req, res) => {
 });
 
 // ── Refresh token (rotation + family reuse detection) ─────────────────────────
-
-const refreshToken = catchAsync(async (req, res) => {
-    const incomingToken = req.cookies?.refreshToken;
+// Staff (Admin/Teacher) and Student each read/write their OWN cookie — see the
+// REFRESH_COOKIE / STUDENT_REFRESH_COOKIE comment above. `expectStudent`
+// enforces that a cookie can only ever resolve to its matching account type,
+// so a stale or crossed-over cookie value can't authenticate as the wrong kind
+// of account.
+const runRefresh = async (req, res, {cookieName, expectStudent}) => {
+    const incomingToken = req.cookies?.[cookieName];
 
     if (!incomingToken) {
         throw new AppError(401, {message: 'No refresh token'}, 'NO_REFRESH_TOKEN');
@@ -271,8 +284,8 @@ const refreshToken = catchAsync(async (req, res) => {
 
     const storedToken = await prisma.refreshToken.findUnique({where: {tokenHash}});
 
-    if (!storedToken) {
-        clearRefreshCookie(res);
+    if (!storedToken || Boolean(storedToken.studentId) !== expectStudent) {
+        clearRefreshCookie(res, cookieName);
         throw new AppError(401, {message: 'Invalid refresh token'}, 'INVALID_TOKEN');
     }
 
@@ -282,7 +295,7 @@ const refreshToken = catchAsync(async (req, res) => {
             where: {family: storedToken.family, isRevoked: false},
             data: {isRevoked: true},
         });
-        clearRefreshCookie(res);
+        clearRefreshCookie(res, cookieName);
         throw new AppError(
             401,
             {message: 'Token reuse detected. All sessions have been revoked for your security.'},
@@ -292,16 +305,16 @@ const refreshToken = catchAsync(async (req, res) => {
 
     if (storedToken.expiresAt < new Date()) {
         await prisma.refreshToken.update({where: {id: storedToken.id}, data: {isRevoked: true}});
-        clearRefreshCookie(res);
+        clearRefreshCookie(res, cookieName);
         throw new AppError(401, {message: 'Refresh token expired'}, 'TOKEN_EXPIRED');
     }
 
     let responseUser, tokenId, tokenRole;
 
-    if (storedToken.studentId) {
+    if (expectStudent) {
         const student = await prisma.student.findUnique({where: {id: storedToken.studentId}});
         if (!student) {
-            clearRefreshCookie(res);
+            clearRefreshCookie(res, cookieName);
             throw new AppError(401, {message: 'Account not active'}, 'ACCOUNT_INACTIVE');
         }
         responseUser = shapeStudentUser(student);
@@ -313,7 +326,7 @@ const refreshToken = catchAsync(async (req, res) => {
             include: {admin: {select: {id: true, name: true}}, teacher: {select: {id: true, name: true}}},
         });
         if (!user || (user.email && !user.isVerified)) {
-            clearRefreshCookie(res);
+            clearRefreshCookie(res, cookieName);
             throw new AppError(401, {message: 'Account not active'}, 'ACCOUNT_INACTIVE');
         }
         const {password: _pw, ...rest} = user;
@@ -331,14 +344,14 @@ const refreshToken = catchAsync(async (req, res) => {
         prisma.refreshToken.create({
             data: {
                 tokenHash: newTokenHash,
-                ...(storedToken.studentId ? {studentId: storedToken.studentId} : {userId: storedToken.userId}),
+                ...(expectStudent ? {studentId: storedToken.studentId} : {userId: storedToken.userId}),
                 family: storedToken.family,
                 expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
             },
         }),
     ]);
 
-    setRefreshCookie(res, newRawToken);
+    setRefreshCookie(res, newRawToken, cookieName);
 
     const newAccessToken = generateAccessToken(tokenId, tokenRole);
 
@@ -347,15 +360,19 @@ const refreshToken = catchAsync(async (req, res) => {
         expiresIn: getAccessTokenExpiresIn(),
         user: responseUser,
     });
-});
+};
+
+const refreshToken = catchAsync((req, res) => runRefresh(req, res, {cookieName: REFRESH_COOKIE, expectStudent: false}));
+
+const studentRefreshToken = catchAsync((req, res) => runRefresh(req, res, {cookieName: STUDENT_REFRESH_COOKIE, expectStudent: true}));
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 
 // Kept with explicit try/catch: even if DB revocation fails, the client must
 // still be logged out (cookie cleared + 200 returned).
-const logout = async (req, res) => {
+const runLogout = async (req, res, cookieName) => {
     try {
-        const incomingToken = req.cookies?.refreshToken;
+        const incomingToken = req.cookies?.[cookieName];
         if (incomingToken) {
             const tokenHash = hashToken(incomingToken);
             await prisma.refreshToken.updateMany({
@@ -366,20 +383,25 @@ const logout = async (req, res) => {
     } catch (_) { /* non-blocking — still log out client */
     }
 
-    clearRefreshCookie(res);
+    clearRefreshCookie(res, cookieName);
     res.json({message: 'Logged out successfully'});
 };
+
+const logout = (req, res) => runLogout(req, res, REFRESH_COOKIE);
+
+const studentLogout = (req, res) => runLogout(req, res, STUDENT_REFRESH_COOKIE);
 
 // ── Logout all devices ────────────────────────────────────────────────────────
 
 const logoutAll = catchAsync(async (req, res) => {
-    const where = req.user.role === 'STUDENT'
+    const isStudent = req.user.role === 'STUDENT';
+    const where = isStudent
         ? {studentId: req.user.id, isRevoked: false}
         : {userId: req.user.id, isRevoked: false};
 
     await prisma.refreshToken.updateMany({where, data: {isRevoked: true}});
 
-    clearRefreshCookie(res);
+    clearRefreshCookie(res, isStudent ? STUDENT_REFRESH_COOKIE : REFRESH_COOKIE);
     res.json({message: 'Logged out from all devices'});
 });
 
@@ -431,7 +453,7 @@ const changePassword = catchAsync(async (req, res) => {
         prisma.refreshToken.updateMany({where: revokeWhere, data: {isRevoked: true}}),
     ]);
 
-    clearRefreshCookie(res);
+    clearRefreshCookie(res, isStudent ? STUDENT_REFRESH_COOKIE : REFRESH_COOKIE);
     res.json({message: 'Password changed successfully. Please log in again.'});
 });
 
@@ -652,7 +674,9 @@ module.exports = {
     verifyEmail,
     resendVerification,
     refreshToken,
+    studentRefreshToken,
     logout,
+    studentLogout,
     logoutAll,
     getProfile,
     changePassword,

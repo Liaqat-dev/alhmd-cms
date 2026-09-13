@@ -39,7 +39,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       // Avoid infinite loop on the refresh endpoint itself
-      if (originalRequest.url?.includes('/auth/refresh-token')) {
+      if (originalRequest.url?.includes('/auth/student-refresh-token')) {
         clearAccessToken()
         window.location.href = '/login'
         return Promise.reject(error)
@@ -62,7 +62,7 @@ api.interceptors.response.use(
 
       try {
         const response = await axios.post(
-          `${BASE_URL}/auth/refresh-token`,
+          `${BASE_URL}/auth/student-refresh-token`,
           {},
           { withCredentials: true, timeout: 30000 }
         )
@@ -90,7 +90,7 @@ export default api
 // Auth API
 export const authAPI = {
   login: (data) => api.post('/auth/student-login', data),
-  logout: () => api.post('/auth/logout'),
+  logout: () => api.post('/auth/student-logout'),
   logoutAll: () => api.post('/auth/logout-all'),
   getProfile: () => api.get('/auth/profile'),
   changePassword: (data) => api.post('/auth/change-password', data),

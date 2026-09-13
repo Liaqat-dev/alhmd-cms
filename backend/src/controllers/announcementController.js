@@ -41,7 +41,7 @@ const getAnnouncementById = catchAsync(async (req, res) => {
 
 const createAnnouncement = catchAsync(async (req, res) => {
   const { title, content, audience, priority, publishedAt, expiresAt } = req.body;
-  const createdBy = req.user.admin?.name || req.user.email || 'Admin';
+  const createdBy = req.user.id; // Announcement.createdBy is a FK to User.id
 
   if (!title || !content || !audience) {
     throw new AppError(400, { message: 'Title, content, and audience are required' });

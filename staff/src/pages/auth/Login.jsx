@@ -64,7 +64,7 @@ export default function Login() {
     return (
         <div className="min-h-screen flex relative overflow-hidden">
             {/* Left Panel - Branding */}
-            <div className="hidden lg:flex lg:w-[480px] xl:w-[540px] flex-col justify-between p-10 relative"
+            <div className="hidden md:flex md:w-[380px] lg:w-[480px] xl:w-[540px] flex-col justify-between p-10 relative"
                  style={{
                      background: 'linear-gradient(175deg, hsl(232, 47%, 13%) 0%, hsl(240, 40%, 18%) 100%)',
                  }}
@@ -88,7 +88,7 @@ export default function Login() {
                 {/* Middle content */}
                 <div className="relative z-10 -mt-8">
                     <div className={'flex gap-3 flex-row items-center'}>
-                        <img src={Logo} alt="CGA" className="h-48  object-contain"/>
+                        <img src={Logo} alt="ALHAMD COLLEGE" className="h-48  object-contain"/>
 
                         <h2 className="text-3xl font-bold text-white leading-tight tracking-tight">
                             AL-HAMD
@@ -122,7 +122,7 @@ export default function Login() {
                 <div className="relative z-10">
                     <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-4"/>
                     <p className="text-[11px] text-white/30">
-                        &copy; {new Date().getFullYear()} Cambridge Grads Academy. All rights reserved.
+                        &copy; {new Date().getFullYear()} Al-hamd College. All rights reserved.
                     </p>
                 </div>
             </div>
@@ -130,30 +130,20 @@ export default function Login() {
             {/* Right Panel - Login Form */}
             <div className="flex-1 flex items-center justify-center bg-[hsl(220,20%,97%)] p-6 sm:p-10">
                 <div className="w-full max-w-[420px]">
-                    {/* Mobile logo */}
-                    <div className="flex items-center gap-3 mb-8 lg:hidden">
-                        <div
-                            className="h-11 w-11 rounded-lg bg-[hsl(232,47%,13%)] flex items-center justify-center overflow-hidden">
-                            <img src={Logo} alt="CGA" className="h-9 w-9 object-contain"/>
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold text-foreground tracking-tight">CGA LMS</h1>
-                            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-                                Learning Management System
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Welcome text */}
-                    <div className="mb-8">
-                        <h2 className="text-2xl font-bold text-foreground tracking-tight">Welcome back</h2>
-                        <p className="text-sm text-muted-foreground mt-1.5">
-                            Sign in to your account to continue
-                        </p>
-                    </div>
-
                     {/* Login Card */}
                     <div className="card bg-white shadow-sm shadow-black/[0.03] p-6">
+                        <div className="flex items-center gap-3 mb-4 ">
+                                <div className={'flex gap-3 flex-row items-center '}>
+                                    <img src={Logo} alt="CGA" className="h-24  object-contain"/>
+
+                                    <h2 className="text-xl font-bold text-pretty leading-tight tracking-tight">
+                                        STAFF
+                                        <br/>
+                                        <span className="text-amber-400">PORTAL</span>
+                                    </h2>
+                                </div>
+                        </div>
+
                         <form onSubmit={handleLogin} className="space-y-4">
                             <div className="space-y-2">
                                 <Label htmlFor="email" className="text-xs font-semibold text-foreground/70">Email

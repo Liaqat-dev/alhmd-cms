@@ -3,6 +3,7 @@ const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const {parseId, parseIds} = require('../utils/helpers');
+const {userHasPermission} = require('../utils/permissions');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +137,15 @@ const getAllTeachers = catchAsync(async (req, res) => {
 
 const getTeacherById = catchAsync(async (req, res) => {
     const {id} = req.params;
+    const teacherId = parseId(id);
+
+    // A teacher may always view their own profile; viewing someone else's
+    // requires the teachers.view permission (admins always pass).
+    const isSelf = req.user.role === 'TEACHER' && req.user.teacher?.id === teacherId;
+    if (!isSelf) {
+        const allowed = await userHasPermission(req.user, 'teachers.view');
+        if (!allowed) throw new AppError(403, 'You do not have permission to view this teacher.');
+    }
 
     const teacher = await prisma.teacher.findUnique({
         where: {id},
