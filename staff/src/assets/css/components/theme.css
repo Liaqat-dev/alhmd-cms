@@ -1,0 +1,95 @@
+@theme {
+  --breakpoint-xxs: 20rem;
+  --breakpoint-xs: 30rem;
+  /* ── Font Families ──────────────────────────────────────── */
+  --font-sans: "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-heading: "Inter", sans-serif;
+  --font-roboto-slab: "Roboto Slab", sans-serif;
+
+  /* ── Spacing ────────────────────────────────────────────── */
+  --spacing-sidebar:        15rem;       /* 240px  – default sidebar width  */
+  --spacing-sidebar-medium: 10rem;       /* 160px  – medium sidebar         */
+  --spacing-sidebar-small:  4.6875rem;   /* 75px   – collapsed sidebar      */
+  --spacing-sidebar-boxed:  2rem;        /* 32px   – boxed layout indent    */
+  --spacing-topbar:         4.6875rem;   /* 75px   – topbar height          */
+  --spacing-sidebar-icon:   4.375rem;    /* 70px   – icon-only sidebar      */
+  --spacing-38:             2.375rem;
+  --spacing-42:             2.625rem;
+  --spacing-btn-icon:       2.5rem;      /* 40px   – icon button size       */
+  --spacing-space:          1.25rem;     /* 20px   – standard spacing unit  */
+
+  /* ── Font Sizes ─────────────────────────────────────────── */
+  --text-11:         0.6875rem;   /* 11px */
+  --text-13:         0.8125rem;   /* 13px */
+  --text-14:         0.875rem;    /* 14px */
+  --text-15:         0.9375rem;   /* 15px */
+  --text-base:       0.9063rem;   /* ~14.5px */
+  --text-16:         1rem;        /* 16px */
+  --text-17:         1.0625rem;   /* 17px */
+  --text-card-title: 0.9375rem;   /* 15px */
+
+  /* ── Primary Color — Blue (default) ─────────────────────── */
+  --color-primary-50:  oklch(97.17% 0.0144 244.71);
+  --color-primary-100: oklch(93.75% 0.0317 246.7);
+  --color-primary-200: oklch(89.16% 0.0566 245.22);
+  --color-primary-300: oklch(82.52% 0.0944 244.01);
+  --color-primary-400: oklch(74.02% 0.1408 248.22);
+  --color-primary-500: oklch(65.26% 0.1828 255.54);
+  --color-primary-600: oklch(59.52% 0.1981 259.78);
+  --color-primary-700: oklch(51.28% 0.213  262.22);
+  --color-primary-800: oklch(44.5%  0.1777 262.99);
+  --color-primary-900: oklch(39.34% 0.1351 262.6);
+  --color-primary-950: oklch(29.24% 0.0856 263.87);
+
+  /* ── Dark / Neutral colors (Slate-based default) ────────── */
+  --color-dark-50:  var(--color-slate-50);
+  --color-dark-100: var(--color-slate-100);
+  --color-dark-200: var(--color-slate-200);
+  --color-dark-300: var(--color-slate-300);
+  --color-dark-400: var(--color-slate-400);
+  --color-dark-500: var(--color-slate-500);
+  --color-dark-600: var(--color-slate-600);
+  --color-dark-700: var(--color-slate-700);
+  --color-dark-800: var(--color-slate-800);
+  --color-dark-850: oklch(23.13% 0.0399 270.37);
+  --color-dark-900: var(--color-slate-900);
+  --color-dark-950: var(--color-slate-950);
+
+  /* ── Sidebar / UI Colors ────────────────────────────────── */
+  --color-sidebar:              var(--color-white);
+  --color-sidebar-border:       var(--color-gray-200);
+  --color-menu-title:           var(--color-gray-600);
+  --color-sidebar-text:         var(--color-gray-500);
+  --color-sidebar-bg:           var(--color-primary-500);
+  --color-sidebar-text-hover:   var(--color-primary-500);
+  --color-sidebar-bg-hover:     var(--color-primary-500);
+  --color-sidebar-text-active:  var(--color-primary-500);
+  --color-sidebar-bg-active:    var(--color-primary-500);
+  --color-effect:               var(--color-gray-100);
+  --color-topbar:               var(--color-gray-500);
+  --color-body:                 var(--color-white);
+
+  /* ── Border Radius Presets ──────────────────────────────── */
+  --radius-modern:   30% 70% 70% 30% / 30% 30% 70% 70%;
+  --radius-creative: 47% 53% 70% 30% / 49% 63% 37% 51%;
+
+  /* ── Strokes ────────────────────────────────────────────── */
+  --stroke-3: 3px;
+  --stroke-4: 4px;
+
+  /* ── Easing & Animations ────────────────────────────────── */
+  --ease-effect: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  --animate-shimmer:   shimmer 3s ease-out infinite;
+  --animate-marquee:   marquee 15s linear forwards infinite;
+
+  @keyframes shimmer {
+    100% { transform: translate(0); opacity: 0; }
+  }
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+}

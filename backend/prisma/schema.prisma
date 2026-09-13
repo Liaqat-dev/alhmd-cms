@@ -1,0 +1,666 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum UserAccountRole {
+  ADMIN
+  TEACHER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum StudentStatus {
+  ENROLLED
+  PENDING
+}
+
+enum ClassProgram {
+  MED
+  ENG
+  ICS
+  IT
+  FA
+}
+
+enum GradeLevel {
+  GRADE_11
+  GRADE_12
+}
+
+enum Availability {
+  ONSITE
+  ONLINE
+  BOTH
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  LEAVE
+}
+
+enum AnnouncementAudience {
+  STUDENTS
+  TEACHERS
+  BOTH
+}
+
+enum AnnouncementPriority {
+  URGENT
+  NORMAL
+  INFORMATIONAL
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ChallanStatus {
+  UNPAID
+  PAID
+  PARTIAL
+  OVERDUE
+  ROLLED_OVER
+}
+
+enum ExpenseType {
+  ADMISSION_FEE
+  REGISTRATION_FEE // unused — Admission Fee serves as the registration fee; kept to match applied migration
+  MISC_FEE
+  BAG
+  UNIFORM
+  BOOKS
+  OTHER
+}
+
+enum ExamType {
+  PAST_PAPER
+  MIDTERM
+  MONTHLY_TEST
+  WEEKLY_TEST
+  BIMONTHLY_TEST
+  FINAL
+  QUIZ
+  ASSIGNMENT
+  TASK
+}
+
+enum SalaryStatus {
+  GENERATED
+  APPROVED
+  PAID
+}
+
+enum PaymentType {
+  MORNING_FEE
+  MORNING_SALARY
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  ONLINE
+}
+
+enum TeacherTier {
+  TIER_1
+  TIER_2A
+  TIER_2B
+  TIER_3
+}
+
+// ── Core Auth Models ──────────────────────────────────────────────────────────
+
+model User {
+  id                 Int      @id @default(autoincrement())
+  email              String?  @unique
+  password           String
+  role               UserAccountRole
+  isVerified         Boolean  @default(false)
+  profilePicUrl      String?
+  profilePicPublicId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  teacher           Teacher?
+  admin             Admin?
+  refreshTokens     RefreshToken[]
+  emailVerification EmailVerification?
+  passwordResets    PasswordReset[]
+
+  // RBAC — a user can hold multiple roles, each role bundles permissions
+  roles Role[]
+
+  // Audit trail - tracks who created/graded/generated content
+  createdExams             MorningExam[]          @relation("CreatedByMorning")
+  gradedMorningMarks       MorningMark[]          @relation("GradedByMorning")
+  generatedMorningReports  MorningMonthlyReport[] @relation("GeneratedByMorning")
+  createdAnnouncements     Announcement[]         @relation("CreatedByAnnouncement")
+  createdMorningChallans   MorningChallan[]       @relation("CreatedByMorningChallan")
+  generatedMorningSalaries MorningSalary[]        @relation("GeneratedByMorningSalary")
+  createdExpenses          StudentExpense[]       @relation("CreatedByExpense")
+  receivedPayments         PaymentHistory[]       @relation("ReceivedByPayment")
+}
+
+// Belongs to exactly one of User (admin/teacher) or Student — never both.
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int?
+  studentId Int?
+  family    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([studentId])
+  @@index([family])
+}
+
+model EmailVerification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Belongs to exactly one of User (admin/teacher) or Student — never both.
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  userId    Int?
+  studentId Int?
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([studentId])
+}
+
+// ── RBAC — Users hold Roles, Roles bundle Permissions ─────────────────────────
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  permissions Permission[]
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // e.g. "students.manage"
+  description String?
+  category    String? // groups permissions in the UI, e.g. "Students"
+  createdAt   DateTime @default(now())
+
+  roles Role[]
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+}
+
+// ── People ────────────────────────────────────────────────────────────────────
+
+model Teacher {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  phone         String?
+  address       String?
+  joiningDate   DateTime @default(now())
+  additionalPay Int      @default(0)
+  basicSalary   Int      @default(0)
+  bonus         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tier TeacherTier @default(TIER_3)
+
+  morningSubjects MorningSubjectTeacher[]
+
+  morningAttendances MorningAttendance[]
+
+  morningTeacherAttendances MorningTeacherAttendance[]
+
+  morningTimetables MorningTimetable[]
+
+  morningSalaries MorningSalary[]
+
+  qualifications TeacherQualification[]
+}
+
+model TeacherQualification {
+  id                 Int      @id @default(autoincrement())
+  teacherId          Int
+  teacher            Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  degreeTitle        String
+  institute          String
+  startYear          Int
+  endYear            Int
+  totalMarksOrGpa    String
+  obtainedMarksOrGpa String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([teacherId])
+}
+
+// Students are no longer backed by a User account — they log in with their
+// rollNumber + password directly. Email (optional) is only used to send a
+// password-reset link; an admin can also reset a student's password directly.
+model Student {
+  id                 Int           @id @default(autoincrement())
+  rollNumber         String        @unique
+  password           String
+  email              String?       @unique
+  profilePicUrl      String?
+  profilePicPublicId String?
+  // Personal Info
+  name             String
+  dateOfBirth      DateTime
+  gender           Gender
+  cnic             String?
+  address          String
+  phone            String?
+  // Guardian Info
+  fatherName       String
+  guardianPhone    String
+  // School Info
+  schoolName       String?
+  // Fees & Discounts
+  registrationFee  Int?
+  familyDiscount   Int? // discount applied if sibling is already enrolled
+  // Academic Info
+  joiningDate      DateTime
+  academicYear     String        @default("2025-2026")
+  status           StudentStatus @default(ENROLLED)
+  registrationDate DateTime      @default(now())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  morningEnrollment MorningEnrollment?
+
+  morningSubjects MorningStudentSubject[]
+
+  morningAttendances MorningAttendance[]
+
+  morningChallans MorningChallan[]
+
+  morningMarks MorningMark[]
+
+  morningReports MorningMonthlyReport[]
+
+  expenses StudentExpense[]
+
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordReset[]
+}
+
+// ── Morning Batch ─────────────────────────────────────────────────────────────
+// Morning classes charge a custom monthly fee per student (set on enrollment).
+// Teachers are assigned per subject, not per class.
+
+model MorningClass {
+  id           Int          @id @default(autoincrement())
+  name         String       @unique
+  gradeLevel   GradeLevel   @default(GRADE_11)
+  program      ClassProgram @default(ICS)
+  studentLimit Int          @default(35)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  subjects    MorningSubject[]
+  enrollments MorningEnrollment[]
+  timetables  MorningTimetable[]
+  exams       MorningExam[]
+
+  // Attendance is recorded per class, not per subject
+  attendances        MorningAttendance[]
+  teacherAttendances MorningTeacherAttendance[]
+}
+
+model MorningSubject {
+  id           Int          @id @default(autoincrement())
+  name         String
+  gradeLevel   GradeLevel   @default(GRADE_11)
+  availability Availability @default(ONSITE)
+  createdAt    DateTime     @default(now())
+
+  // A subject can now be shared across multiple classes of the same grade level
+  classes MorningClass[]
+
+  teacherAssignments MorningSubjectTeacher[]
+  studentEnrollments MorningStudentSubject[]
+  timetableSlots     MorningTimetable[]
+  exams              MorningExam[]
+
+  @@unique([name, gradeLevel])
+}
+
+// A teacher is assigned to a specific morning subject, not to the whole class
+model MorningSubjectTeacher {
+  id         Int            @id @default(autoincrement())
+  subjectId  Int
+  subject    MorningSubject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId  Int
+  teacher    Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  assignedAt DateTime       @default(now())
+
+  @@unique([subjectId, teacherId])
+}
+
+// Tracks which morning subjects a student is enrolled in
+model MorningStudentSubject {
+  id         Int            @id @default(autoincrement())
+  studentId  Int
+  subjectId  Int
+  student    Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject    MorningSubject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  enrolledAt DateTime       @default(now())
+
+  @@unique([studentId, subjectId])
+  @@index([studentId])
+  @@index([subjectId])
+}
+
+// A student can be enrolled in only one morning class
+model MorningEnrollment {
+  id             Int           @id @default(autoincrement())
+  studentId      Int           @unique
+  morningClassId Int?
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  morningClass   MorningClass? @relation(fields: [morningClassId], references: [id], onDelete: SetNull)
+  monthlyFee     Int // custom fee agreed for this student
+  isActive       Boolean       @default(true)
+  enrolledAt     DateTime      @default(now())
+
+  @@index([morningClassId])
+}
+
+model MorningTimetable {
+  id             Int            @id @default(autoincrement())
+  morningClassId Int
+  morningClass   MorningClass   @relation(fields: [morningClassId], references: [id], onDelete: Cascade)
+  subjectId      Int
+  subject        MorningSubject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId      Int?
+  teacher        Teacher?       @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  dayOfWeek      DayOfWeek
+  startTime      String
+  endTime        String
+  room           String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([morningClassId, dayOfWeek, startTime])
+}
+
+// Attendance is recorded per class (one record per student per class per day),
+// not per subject.
+model MorningAttendance {
+  id             Int              @id @default(autoincrement())
+  studentId      Int
+  morningClassId Int
+  teacherId      Int?
+  date           DateTime
+  status         AttendanceStatus
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  morningClass   MorningClass     @relation(fields: [morningClassId], references: [id], onDelete: Cascade)
+  teacher        Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+
+  @@unique([studentId, morningClassId, date])
+  @@index([studentId])
+  @@index([date])
+  @@index([teacherId])
+  @@index([morningClassId])
+}
+
+model MorningExam {
+  id             Int            @id @default(autoincrement())
+  title          String
+  examType       ExamType
+  morningClassId Int
+  morningClass   MorningClass   @relation(fields: [morningClassId], references: [id], onDelete: Cascade)
+  subjectId      Int
+  subject        MorningSubject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  totalMarks     Int
+  passingMarks   Int
+  scheduledDate  DateTime
+  createdBy      Int
+  createdByUser  User           @relation("CreatedByMorning", fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  marks MorningMark[]
+
+  @@index([createdBy])
+  @@index([scheduledDate])
+}
+
+model MorningMark {
+  id            Int         @id @default(autoincrement())
+  examId        Int
+  exam          MorningExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId     Int
+  student       Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  obtainedMarks Decimal
+  grade         String?
+  remarks       String?
+  gradedBy      Int
+  gradedByUser  User        @relation("GradedByMorning", fields: [gradedBy], references: [id], onDelete: Restrict)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([examId, studentId])
+  @@index([gradedBy])
+}
+
+model MorningMonthlyReport {
+  id                   Int      @id @default(autoincrement())
+  studentId            Int
+  student              Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  month                Int
+  year                 Int
+  attendancePercentage Decimal
+  totalPresent         Int
+  totalAbsent          Int
+  totalLate            Int
+  totalWorkingDays     Int
+  averageMarks         Decimal?
+  totalExams           Int      @default(0)
+  examsPassed          Int      @default(0)
+  tasksAssigned        Int      @default(0)
+  tasksCompleted       Int      @default(0)
+  teacherRemarks       String?
+  generatedBy          Int
+  generatedByUser      User     @relation("GeneratedByMorning", fields: [generatedBy], references: [id], onDelete: Restrict)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([studentId, month, year])
+  @@index([generatedBy])
+}
+
+// A teacher is auto-marked present for a class on the day they take that
+// class's attendance — tracked per class now, matching student attendance.
+model MorningTeacherAttendance {
+  id             Int              @id @default(autoincrement())
+  teacherId      Int?
+  morningClassId Int
+  date           DateTime
+  status         AttendanceStatus @default(PRESENT)
+  teacher        Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  morningClass   MorningClass     @relation(fields: [morningClassId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now())
+
+  @@unique([teacherId, morningClassId, date])
+  @@index([teacherId])
+  @@index([date])
+}
+
+// ── Communication ─────────────────────────────────────────────────────────────
+
+model Announcement {
+  id            Int                  @id @default(autoincrement())
+  title         String
+  content       String
+  audience      AnnouncementAudience
+  priority      AnnouncementPriority @default(NORMAL)
+  publishedAt   DateTime             @default(now())
+  expiresAt     DateTime?
+  isActive      Boolean              @default(true)
+  createdBy     Int
+  createdByUser User                 @relation("CreatedByAnnouncement", fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([createdBy])
+}
+
+// ── Morning Fee System (flat monthly fee per class) ───────────────────────────
+
+model MorningChallan {
+  id                Int           @id @default(autoincrement())
+  challanNumber     String        @unique
+  studentId         Int
+  student           Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issueDate         DateTime      @default(now())
+  dueDate           DateTime
+  month             Int
+  year              Int
+  monthlyFee        Int
+  arrears           Int           @default(0)
+  lateFee           Int           @default(0)
+  discount          Int           @default(0)
+  additionalCharges Int           @default(0)
+  totalAmount       Int
+  status            ChallanStatus @default(UNPAID)
+  paidAmount        Int           @default(0)
+  paidDate          DateTime?
+  remarks           String?
+  createdBy         Int
+  createdByUser     User          @relation("CreatedByMorningChallan", fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  rolledIntoId      Int?
+  rolledIntoChallan MorningChallan?  @relation("MorningRolledInto", fields: [rolledIntoId], references: [id])
+  rolledChallans    MorningChallan[] @relation("MorningRolledInto")
+
+  expenses       StudentExpense[]
+  paymentHistory PaymentHistory[]
+
+  @@unique([studentId, month, year])
+  @@index([createdBy])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// ── Student Expenses (one-time charges included in specific challan) ───────────
+
+model StudentExpense {
+  id               Int             @id @default(autoincrement())
+  studentId        Int
+  student          Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type             ExpenseType
+  label            String? // custom display label (auto-set from type if blank)
+  amount           Int
+  month            Int
+  year             Int
+  morningChallanId Int?
+  morningChallan   MorningChallan? @relation(fields: [morningChallanId], references: [id], onDelete: SetNull)
+  createdBy        Int
+  createdByUser    User            @relation("CreatedByExpense", fields: [createdBy], references: [id], onDelete: Restrict)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([createdBy])
+  @@index([studentId])
+}
+
+// ── Salary Models ─────────────────────────────────────────────────────────────
+
+model MorningSalary {
+  id              Int          @id @default(autoincrement())
+  teacherId       Int?
+  teacher         Teacher?     @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  month           Int
+  year            Int
+  basicSalary     Int          @default(0)
+  additionalPay   Int          @default(0)
+  totalSalary     Int          @default(0)
+  status          SalaryStatus @default(GENERATED)
+  remarks         String?
+  generatedBy     Int
+  generatedByUser User         @relation("GeneratedByMorningSalary", fields: [generatedBy], references: [id], onDelete: Restrict)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  paymentHistory PaymentHistory[]
+
+  @@unique([teacherId, month, year])
+  @@index([generatedBy])
+  @@index([status])
+}
+
+// ── Payment History ───────────────────────────────────────────────────────────
+
+model PaymentHistory {
+  id               Int             @id @default(autoincrement())
+  paymentType      PaymentType
+  morningChallanId Int?
+  morningChallan   MorningChallan? @relation(fields: [morningChallanId], references: [id], onDelete: SetNull)
+  morningSalaryId  Int?
+  morningSalary    MorningSalary?  @relation(fields: [morningSalaryId], references: [id], onDelete: SetNull)
+  amount           Int
+  paymentMethod    PaymentMethod   @default(CASH)
+  previousBalance  Int             @default(0)
+  newBalance       Int             @default(0)
+  receivedBy       Int?
+  receivedByUser   User?           @relation("ReceivedByPayment", fields: [receivedBy], references: [id], onDelete: SetNull)
+  notes            String?
+  createdAt        DateTime        @default(now())
+
+  @@index([receivedBy])
+  @@index([paymentType])
+}

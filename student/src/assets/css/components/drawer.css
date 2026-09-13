@@ -1,0 +1,41 @@
+@layer components {
+  /* Base drawer — always fixed, full height, translates off-screen */
+  [data-drawer] {
+    @apply fixed top-0 z-[1055] h-full w-80 bg-white dark:bg-dark-900
+           shadow-2xl transition-transform duration-300 ease-in-out;
+  }
+
+  /* Backdrop */
+  .drawer-backdrop {
+    @apply fixed inset-0 z-[1054] bg-black/40 backdrop-blur-sm
+           transition-opacity duration-300;
+  }
+
+  /* ── Positions ──────────────────────────────────────────── */
+  [drawer-start] { @apply left-0 -translate-x-full; }
+  [drawer-start].show { @apply translate-x-0; }
+
+  [drawer-end] { @apply right-0 translate-x-full; }
+  [drawer-end].show { @apply translate-x-0; }
+
+  [drawer-bottom] {
+    @apply inset-x-0 bottom-0 top-auto !h-80 w-full translate-y-full rounded-t-2xl;
+  }
+  [drawer-bottom].show { @apply translate-y-0; }
+
+  [drawer-top] {
+    @apply inset-x-0 top-0 !h-80 w-full -translate-y-full rounded-b-2xl;
+  }
+  [drawer-top].show { @apply translate-y-0; }
+
+  /* ── Inner sections ─────────────────────────────────────── */
+  .drawer-header {
+    @apply flex items-center justify-between px-5 py-4
+           border-b border-gray-200 dark:border-dark-800;
+  }
+  .drawer-body   { @apply flex-1 overflow-y-auto p-5; }
+  .drawer-footer {
+    @apply flex items-center gap-3 px-5 py-4
+           border-t border-gray-200 dark:border-dark-800;
+  }
+}

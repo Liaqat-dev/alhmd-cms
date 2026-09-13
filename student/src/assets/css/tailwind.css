@@ -1,0 +1,57 @@
+/*
+ * Template — Tailwind CSS 4 Theme
+ * Extracted from Domiex Admin Dashboard (Tailwind CSS 4 + React 19 + TypeScript)
+ */
+
+/* ── Fonts (must come first per CSS spec) ───────────────── */
+@import "./fonts/fonts.css";
+
+/* ── Core ──────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* ── Theme variables (@theme block) ────────────────────── */
+@import "./components/theme.css";
+
+/* ── Color theme overrides ──────────────────────────────── */
+@import "./themes-color/primary-color.css";
+@import "./themes-color/sidebar-color.css";
+@import "./themes-color/dark-color.css";
+
+/* ── Shadcn backward compat (CSS vars + custom components) ─ */
+@import "./components/shadcn-compat.css";
+
+/* ── Base & helpers ─────────────────────────────────────── */
+@import "./components/helper.css";
+
+/* ── Animations ─────────────────────────────────────────── */
+@import "./components/animation.css";
+
+/* ── Drawer ─────────────────────────────────────────────── */
+@import "./components/drawer.css";
+
+/* ── Component plugins (generate color variants) ────────── */
+@plugin "../../../plugins/buttons.js";
+@plugin "../../../plugins/cards.js";
+@plugin "../../../plugins/badges.js";
+@plugin "../../../plugins/alerts.js";
+@plugin "../../../plugins/forms.js";
+
+/* ── Button base styles ─────────────────────────────────── */
+@layer components {
+  button { cursor: pointer; }
+
+  .btn {
+    @apply inline-block cursor-pointer py-[0.5625rem] px-6 text-center border
+           rounded-md border-transparent bg-transparent text-sm
+           transition-all duration-200 ease-linear;
+  }
+  .btn.btn-icon  { @apply p-0 size-btn-icon flex items-center justify-center; }
+  .btn.btn-xs    { @apply px-2 py-1 text-11; }
+  .btn.btn-sm    { @apply px-3 py-1.5 text-xs; }
+  .btn.btn-md    { @apply px-4 py-2 text-13; }
+  .btn.btn-lg    { @apply py-3 px-7 text-16; }
+  .btn-icon-text { @apply flex items-center justify-center gap-2; }
+}
+
+/* ── Dark mode variant (supports both .dark class and data-mode attr) ── */
+@custom-variant dark (&:where(.dark, .dark *, [data-mode=dark], [data-mode=dark] *));

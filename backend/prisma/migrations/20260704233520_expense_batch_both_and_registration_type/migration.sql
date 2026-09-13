@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "Batch" ADD VALUE 'BOTH';
+
+-- AlterEnum
+ALTER TYPE "ExpenseType" ADD VALUE 'REGISTRATION_FEE';
