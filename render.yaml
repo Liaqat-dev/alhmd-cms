@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: cms-landing
+    runtime: static
+    rootDir: landing
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: cms-staff
+    runtime: static
+    rootDir: staff
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: cms-student
+    runtime: static
+    rootDir: student
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
