@@ -1,4 +1,5 @@
 import logo from '@/images/logo.png'
+import { INSTITUTE_NAME } from '@shared/config/institute'
 
 const MONTHS = [
     {value: 1, label: 'January'},
@@ -189,7 +190,7 @@ export function printReport(report, subjects = []) {
     <div style="display:flex;align-items:center;gap:16px;">
       <img src="${logo}" style="height:52px;object-fit:contain;filter:brightness(0) invert(1);" alt="Logo" />
       <div>
-        <div class="banner-school">Cambridge Grads Academy</div>
+        <div class="banner-school">${INSTITUTE_NAME}</div>
         <div class="banner-subtitle">Student Monthly Progress Report</div>
       </div>
     </div>
@@ -299,7 +300,7 @@ export function printReport(report, subjects = []) {
   <div class="footer">
     <div class="footer-left">
       <div>Generated: ${new Date().toLocaleDateString('en-GB', {day: '2-digit', month: 'long', year: 'numeric'})}</div>
-      <div>Cambridge Grads Academy &bull; Official Student Report</div>
+      <div>${INSTITUTE_NAME} &bull; Official Student Report</div>
       <div style="color:#cbd5e1;">This is a computer-generated document</div>
     </div>
     <div class="signature-line">Authorized Signature</div>

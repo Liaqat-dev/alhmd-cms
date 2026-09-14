@@ -196,9 +196,9 @@ const getStudentDashboard = catchAsync(async (req, res) => {
   // Get enrolled subject IDs from actual student enrollments
   const enrolledSubjectIds = studentSubjects.map(s => s.subjectId);
 
-  // Transform timetable entries to match dashboard format - only for enrolled subjects
+  // Transform timetable entries to match dashboard format — every lecture
+  // scheduled today for the student's enrolled class(es).
   const todaysLectures = (timetableEntries || [])
-    .filter(entry => enrolledSubjectIds.includes(entry.subject.id))
     .map(entry => ({
       id: entry.id,
       subject: entry.subject,

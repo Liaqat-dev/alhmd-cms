@@ -4,6 +4,7 @@ import {useAuth} from '@/context/AuthContext'
 import {cn} from '@/lib/utils'
 import UserAvatar from '@/components/shared/UserAvatar'
 import Logo from '../../images/logo.png'
+import {INSTITUTE_NAME} from '@shared/config/institute'
 import {
     Award,
     Banknote,
@@ -270,7 +271,7 @@ export default function Sidebar({
                     'bg-white dark:bg-dark-900',
                     'border-r border-gray-100 dark:border-dark-800',
                     'shadow-sm dark:shadow-none',
-                    collapsed ? 'w-[72px]' : 'w-[170px] sm:w-[200px] md:w-[280px]'
+                    collapsed ? 'w-[72px]' : 'w-[160px] sm:w-[180px] md:w-[230px]'
                 )}
             >
                 {/* Collapse / Expand toggle */}
@@ -304,17 +305,17 @@ export default function Sidebar({
                     <div className="relative flex items-center gap-3">
                         {/* Logo */}
                         <div className={cn(
-                            'rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0',
-                            'bg-primary-500/10 shadow-md shadow-primary-500/30',
-                            'transition-all duration-300',
-                            'h-11 w-11'
+                            ' flex items-center justify-center overflow-hidden flex-shrink-0',
+                            ' ',
+                            '',
+                            'h-16'
                         )}>
                             <img
                                 src={Logo}
-                                alt="CGA"
+                                alt={INSTITUTE_NAME}
                                 className={cn(
                                     'object-contain transition-all duration-300',
-                                    'h-9 w-9'
+                                    'h-16'
                                 )}
                             />
                         </div>
@@ -322,19 +323,10 @@ export default function Sidebar({
                         {/* Title + badges */}
                         {!collapsed && (
                             <div className="flex flex-col min-w-0">
-                                <h1 className="font-display text-[17px] font-bold text-gray-800 dark:text-dark-50 leading-tight truncate ">
-                                    CGA LMS
+                                <h1 className="font-display text-[15px] font-bold text-gray-800 dark:text-dark-50 leading-tight truncate ">
+                                    AL-HAMD<br/>SCIENCE<br/>COLLEGE
                                 </h1>
-                                {user?.role && (
-                                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                        <span className={cn(
-                                            'inline-flex items-center px-2 py-0 text-[10px] font-semibold uppercase tracking-widest rounded-full border',
-                                            roleBadgeColors[user.role] || 'bg-gray-100 dark:bg-dark-800 text-gray-500 dark:text-dark-400 border-gray-200 dark:border-dark-700'
-                                        )}>
-                                            {user.role}
-                                        </span>
-                                    </div>
-                                )}
+
                             </div>
                         )}
                     </div>

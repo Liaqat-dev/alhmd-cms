@@ -1,4 +1,5 @@
-import Logo from '@/images/logo.png'
+import Logo from '@/images/LOGO.png'
+import { INSTITUTE_NAME } from '@shared/config/institute'
 
 const FEATURES = [
     'Real-time attendance tracking',
@@ -36,7 +37,7 @@ export default function AuthBrandPanel() {
             {/* Middle content */}
             <div className="relative z-10 -mt-8">
                 <div className="flex gap-3 flex-row items-center">
-                    <img src={Logo} alt="Al-hamd Science College" className="h-48 object-contain" />
+                    <img src={Logo} alt={INSTITUTE_NAME} className="h-48 object-contain" />
                     <h2 className="text-3xl font-bold text-white leading-tight tracking-tight">
                         AL-HAMD
                         <br />
@@ -64,7 +65,7 @@ export default function AuthBrandPanel() {
             <div className="relative z-10">
                 <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-4" />
                 <p className="text-[11px] text-white/30">
-                    &copy; {new Date().getFullYear()} Al-hamd College. All rights reserved.
+                    &copy; {new Date().getFullYear()} {INSTITUTE_NAME}. All rights reserved.
                 </p>
             </div>
         </div>

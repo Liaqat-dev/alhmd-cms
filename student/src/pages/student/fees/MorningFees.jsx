@@ -6,6 +6,7 @@ import {morningFeesAPI, paymentInfoAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {AlertCircle, Building2, CheckCircle, Clock, CreditCard, Download, Printer, Receipt, Wallet,} from 'lucide-react'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
+import {INSTITUTE_NAME} from '@shared/config/institute'
 
 const MONTHS = [
     {value: 1, label: 'January'},
@@ -115,7 +116,7 @@ export default function MorningFees() {
       </head>
       <body>
         <div class="header">
-          <h1>Cambridge Grads Academy</h1>
+          <h1>${INSTITUTE_NAME}</h1>
           <p>Morning Batch - Fee Challan</p>
         </div>
         <div class="challan-info">
@@ -154,7 +155,7 @@ export default function MorningFees() {
           <p style="margin-bottom: 0;"><em>Please mention challan number in payment reference</em></p>
         </div>
         <div class="footer">
-          <p>For queries, contact: info@cambridgegrads.edu.pk | Phone: +92-XXX-XXXXXXX</p>
+          <p>For queries, contact the administration office</p>
           <p>Late fee of Rs. 500 will be charged after due date</p>
         </div>
         <script>window.print();</script>

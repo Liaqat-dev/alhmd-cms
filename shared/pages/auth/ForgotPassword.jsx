@@ -4,8 +4,9 @@ import { authAPI } from '@/services/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import Logo from '@/images/logo.png'
+import Logo from '@/images/LOGO.png'
 import AuthBrandPanel from '@shared/components/AuthBrandPanel'
+import { INSTITUTE_NAME } from '@shared/config/institute'
 import { Mail, ArrowLeft, Loader2, CheckCircle, KeyRound } from 'lucide-react'
 
 export default function ForgotPassword({ badgeSubtitle = 'Works for Admins & Teachers' }) {
@@ -43,10 +44,10 @@ export default function ForgotPassword({ badgeSubtitle = 'Works for Admins & Tea
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 md:hidden">
             <div className="h-11 w-11 rounded-lg bg-[hsl(232,47%,13%)] flex items-center justify-center overflow-hidden">
-              <img src={Logo} alt="Al-hamd Science College" className="h-9 w-9 object-contain" />
+              <img src={Logo} alt={INSTITUTE_NAME} className="h-9 w-9 object-contain" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground tracking-tight">Al-hamd College</h1>
+              <h1 className="text-lg font-bold text-foreground tracking-tight">{INSTITUTE_NAME}</h1>
               <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                 Science College
               </p>

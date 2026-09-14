@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
 import { Mail, RefreshCw, Loader2, ArrowLeft, CheckCircle } from 'lucide-react'
 import Logo from '../../images/logo.png'
+import { INSTITUTE_NAME } from '@shared/config/institute'
 
 export default function CheckEmail() {
   const [searchParams] = useSearchParams()
@@ -38,10 +39,10 @@ export default function CheckEmail() {
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center overflow-hidden">
-            <img src={Logo} alt="CGA" className="h-10 w-10 object-contain" />
+            <img src={Logo} alt={INSTITUTE_NAME} className="h-10 w-10 object-contain" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">CGA LMS</h1>
+            <h1 className="text-xl font-bold text-white tracking-tight">{INSTITUTE_NAME} LMS</h1>
             <p className="text-[11px] text-white/40 uppercase tracking-widest font-medium">Learning Management System</p>
           </div>
         </div>
@@ -71,7 +72,7 @@ export default function CheckEmail() {
           {/* Steps */}
           <div className="text-left space-y-3 bg-blue-50/60 rounded-xl p-4">
             {[
-              'Open the email from CGA LMS',
+              `Open the email from ${INSTITUTE_NAME} LMS`,
               'Click the "Verify Email Address" button',
               'Return here and log in',
             ].map((step, i) => (

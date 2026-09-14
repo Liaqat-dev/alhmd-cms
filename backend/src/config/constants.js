@@ -36,11 +36,11 @@ const O_LEVEL_BANDS = [
 const CHALLAN_DUE_DATE_DAY = 15; // Fee challans are due on the 15th of each month
 
 // ── Institution ───────────────────────────────────────────────────────────────
-const INSTITUTE_NAME      = 'Cambridge Grads Academy';
-const INSTITUTE_TAG       = 'Excellence in Education';
-const BANK_ACCOUNT_TITLE  = 'Cambridge Grads Academy';
-const BANK_ACCOUNT_NUMBER = 'PK48BAHL5637008100066901S';
-const BANK_NAME           = 'Bank Al Habib Ltd';
+// Configurable per deployment — this codebase is reused across institutes, so
+// nothing here should be a literal school name. Bank details are NOT here:
+// they're managed at runtime via the PaymentInfo CRUD (see paymentInfoController).
+const INSTITUTE_NAME = process.env.INSTITUTE_NAME || 'Al-Hamd Science College';
+const INSTITUTE_TAG  = process.env.INSTITUTE_TAG || 'Excellence in Education';
 
 // ── PDF Color Palette ─────────────────────────────────────────────────────────
 const NAVY       = '#1a2744';
@@ -80,9 +80,6 @@ module.exports = {
   // Institution
   INSTITUTE_NAME,
   INSTITUTE_TAG,
-  BANK_ACCOUNT_TITLE,
-  BANK_ACCOUNT_NUMBER,
-  BANK_NAME,
   // PDF Colors
   NAVY, NAVY_MID, NAVY_LIGHT, SLATE, GRAY, GRAY_LIGHT, GRAY_BG, WHITE,
   RED, GREEN, ORANGE, AMBER_BG, AMBER_BD, AMBER_TXT, EMERALD_BG, ROSE_BG, ACCENT,

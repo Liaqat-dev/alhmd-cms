@@ -349,11 +349,13 @@ const downloadChallanPDF = catchAsync(async (req, res) => {
     throw new AppError(403, { message: 'Access denied' });
   }
 
+  const paymentInfo = await prisma.paymentInfo.findFirst({ orderBy: { createdAt: 'asc' } });
+
   const mapped = mapChallan(challan);
   const filename = `challan-${challan.challanNumber}.pdf`;
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  generateChallanPDF(mapped, res);
+  generateChallanPDF(mapped, res, paymentInfo);
 });
 
 const getPaymentHistory = catchAsync(async (req, res) => {

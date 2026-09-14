@@ -176,7 +176,7 @@ export default function ProfileHeader({ student, stats, outstandingBalance, unpa
                         valueCls={attTheme.txt}
                         sub={
                             stats
-                                ? `${stats.present} present · ${stats.absent} absent · ${stats.late} late`
+                                ? `${stats.present} present · ${stats.absent} absent · ${stats.leave} leave`
                                 : 'No data yet'
                         }
                         bg={attTheme.bg}

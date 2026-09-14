@@ -20,6 +20,11 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    envVars:
+      - key: VITE_INSTITUTE_NAME
+        value: Al-Hamd Science College
+      - key: VITE_INSTITUTE_TAG
+        value: Excellence in Education
 
   - type: web
     name: cms-student
@@ -31,3 +36,8 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    envVars:
+      - key: VITE_INSTITUTE_NAME
+        value: Al-Hamd Science College
+      - key: VITE_INSTITUTE_TAG
+        value: Excellence in Education

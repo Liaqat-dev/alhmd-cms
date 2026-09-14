@@ -5,7 +5,7 @@ const fs = require('fs');
 const {
   NAVY, NAVY_MID, NAVY_LIGHT, SLATE, GRAY, GRAY_LIGHT, GRAY_BG, WHITE,
   RED, GREEN, ORANGE, AMBER_BG, AMBER_BD, AMBER_TXT, EMERALD_BG, ROSE_BG, ACCENT,
-  INSTITUTE_NAME, INSTITUTE_TAG, BANK_ACCOUNT_TITLE, BANK_ACCOUNT_NUMBER, BANK_NAME
+  INSTITUTE_NAME, INSTITUTE_TAG,
 } = require('../config/constants');
 
 const LOGO_PATH = path.join(__dirname, '../../public/assets/LOGO.png');
@@ -65,7 +65,7 @@ function roundedRect(doc, x, y, w, h, r) {
 
 // ── Single Challan Copy ────────────────────────────────────────────────────────
 
-function drawChallanCopy(doc, challan, x, y, colWidth, copyLabel) {
+function drawChallanCopy(doc, challan, x, y, colWidth, copyLabel, paymentInfo) {
   const pad = 18;
   const ix  = x + pad;          // inner x
   const iw  = colWidth - pad * 2; // inner width
@@ -272,9 +272,14 @@ function drawChallanCopy(doc, challan, x, y, colWidth, copyLabel) {
     by += 11;
   };
 
-  bankRow('Account Title', BANK_ACCOUNT_TITLE);
-  bankRow('Account No.', BANK_ACCOUNT_NUMBER);
-  bankRow('Bank', BANK_NAME);
+  if (paymentInfo) {
+    bankRow('Account Title', paymentInfo.accountTitle);
+    bankRow('Account No.', paymentInfo.accountNumber);
+    bankRow('Bank', paymentInfo.bankName);
+  } else {
+    doc.font('Helvetica').fontSize(7).fillColor(GRAY);
+    doc.text('Contact the administration for payment details.', blx, by, { width: iw - 16 });
+  }
 
   cy += bh + 8;
 
@@ -304,7 +309,7 @@ function drawChallanCopy(doc, challan, x, y, colWidth, copyLabel) {
 
 // ── Main PDF Generator ─────────────────────────────────────────────────────────
 
-function generateChallanPDF(challanData, outputStream) {
+function generateChallanPDF(challanData, outputStream, paymentInfo) {
   const doc = new PDFDocument({
     size: 'A4',
     layout: 'landscape',
@@ -341,8 +346,8 @@ function generateChallanPDF(challanData, outputStream) {
   doc.text('\u2702', centerX - 4, 14);
 
   // ── Draw both copies ──
-  drawChallanCopy(doc, challanData, 10, 18, colWidth, 'Student Copy');
-  drawChallanCopy(doc, challanData, centerX + 5, 18, colWidth, 'Campus Copy');
+  drawChallanCopy(doc, challanData, 10, 18, colWidth, 'Student Copy', paymentInfo);
+  drawChallanCopy(doc, challanData, centerX + 5, 18, colWidth, 'Campus Copy', paymentInfo);
 
   // ── Footer text ──
   doc.font('Helvetica').fontSize(5.5).fillColor(GRAY);

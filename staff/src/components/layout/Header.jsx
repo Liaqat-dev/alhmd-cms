@@ -6,6 +6,7 @@ import {Bell, ChevronDown, LogOut, Menu, Moon, Palette, Sun, User, X,} from 'luc
 import {Button} from '@/components/ui/button'
 import Logo from '../../images/logo.png'
 import UserAvatar from '@/components/shared/UserAvatar'
+import {INSTITUTE_NAME} from '@shared/config/institute'
 import {PALETTES, useTheme} from '@/hooks/useTheme'
 
 const breadcrumbMap = {
@@ -71,7 +72,7 @@ export default function Header({title, onMenuToggle, mobileMenuOpen}) {
                     {/* Brand — mobile only */}
                     <div className="md:hidden flex items-center">
                         <Link  to={'/'}>
-                            <img src={Logo} alt="CGA" className="h-11 object-contain"/>
+                            <img src={Logo} alt={INSTITUTE_NAME} className="h-11 object-contain"/>
                         </Link>
                     </div>
 

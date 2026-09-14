@@ -1,8 +1,9 @@
 const { Resend } = require('resend');
+const { INSTITUTE_NAME, INSTITUTE_TAG } = require('../config/constants');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const appName = () => process.env.APP_NAME || 'CGA';
+const appName = () => INSTITUTE_NAME;
 const frontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:5173';
 const fromAddress = () => process.env.EMAIL_FROM || `${appName()} <onboarding@resend.dev>`;
 
@@ -24,7 +25,7 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
               <tr>
                 <td style="background:#1e40af;padding:32px 40px;">
                   <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${appName()}</h1>
-                  <p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;">Cambridge Global Academy</p>
+                  <p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;">${INSTITUTE_TAG}</p>
                 </td>
               </tr>
               <tr>
@@ -112,7 +113,7 @@ const sendPasswordResetEmail = async (email, name, resetToken) => {
               <tr>
                 <td style="background:#1e40af;padding:32px 40px;">
                   <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${appName()}</h1>
-                  <p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;">Cambridge Global Academy</p>
+                  <p style="margin:4px 0 0;color:#bfdbfe;font-size:13px;">${INSTITUTE_TAG}</p>
                 </td>
               </tr>
               <tr>

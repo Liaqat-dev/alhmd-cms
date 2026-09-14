@@ -7,6 +7,7 @@ import {Label} from '@/components/ui/label'
 import {useToast} from '@/hooks/use-toast'
 import Logo from '../../images/logo.png'
 import AuthBrandPanel from '@shared/components/AuthBrandPanel'
+import {INSTITUTE_NAME} from '@shared/config/institute'
 import {
     Hash,
     Lock,
@@ -56,7 +57,7 @@ export default function Login() {
                     <div className="card bg-white shadow-sm shadow-black/[0.03] p-6">
                         <div className="flex items-center gap-3 mb-4 ">
                             <div className={'flex gap-3 flex-row items-center '}>
-                                <img src={Logo} alt="CGA" className="h-24  object-contain"/>
+                                <img src={Logo} alt={INSTITUTE_NAME} className="h-24  object-contain"/>
 
                                 <h2 className="text-xl font-bold text-pretty leading-tight tracking-tight">
                                     STUDENT
@@ -135,7 +136,7 @@ export default function Login() {
 
                     {/* Footer for mobile */}
                     <p className="text-center text-[11px] text-muted-foreground/60 mt-6 lg:hidden">
-                        &copy; {new Date().getFullYear()} Al-hamd Science College
+                        &copy; {new Date().getFullYear()} {INSTITUTE_NAME}
                     </p>
                 </div>
             </div>
