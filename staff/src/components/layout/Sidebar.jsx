@@ -21,6 +21,7 @@ import {
     LogOut,
     Megaphone,
     School,
+    Settings,
     ShieldCheck,
     User,
     Users,
@@ -28,38 +29,38 @@ import {
 import {Button} from '@/components/ui/button'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
 
-const adminLinks = [
-    {href: '/admin', label: 'Dashboard', icon: LayoutDashboard},
-    {href: '/admin/students', label: 'Students', icon: GraduationCap},
-    {href: '/admin/teachers', label: 'Teachers', icon: Users},
-    {href: '/admin/classes', label: 'Classes', icon: School},
-    {href: '/admin/subjects', label: 'Subjects', icon: BookOpen},
-    {href: '/admin/timetable', label: 'Timetable', icon: Clock},
-    {href: '/admin/announcements', label: 'Announcements', icon: Megaphone},
-    {href: '/admin/mark-attendance', label: 'Mark Attendance', icon: ClipboardList},
-    {href: '/admin/attendance', label: 'Attendance Register', icon: ListTodo},
-    {href: '/admin/mark-teacher-attendance', label: 'Mark Teacher Attendance', icon: ClipboardList},
-    {href: '/admin/teacher-attendance', label: 'Teacher Attendance', icon: ListTodo},
-    {href: '/admin/fees', label: 'Fee Management', icon: DollarSign},
-    {href: '/admin/marks', label: 'Marks/Exams', icon: Award},
-    {href: '/admin/salaries', label: 'Teacher Salaries', icon: Banknote},
-    {href: '/admin/reports', label: 'Reports', icon: FileText},
-    {href: '/admin/users', label: 'Users', icon: Users},
-    {href: '/admin/roles', label: 'Roles', icon: ShieldCheck},
-    {href: '/admin/profile', label: 'My Profile', icon: User},
-]
-
-const teacherLinks = [
-    {href: '/teacher', label: 'Dashboard', icon: LayoutDashboard},
-    {href: '/teacher/timetable', label: 'My Timetable', icon: Clock},
-    {href: '/teacher/attendance', label: 'Mark Attendance', icon: ClipboardList},
-    {href: '/teacher/class-register', label: 'Class Register', icon: ClipboardList},
-    {href: '/teacher/mark-teacher-attendance', label: 'Mark Teacher Attendance', icon: Users},
-    {href: '/teacher/marks', label: 'Enter Marks', icon: Award},
-    {href: '/teacher/reports', label: 'Reports', icon: FileText},
-    {href: '/teacher/salaries', label: 'My Salaries', icon: Banknote},
-    {href: '/teacher/profile', label: 'My Profile', icon: User},
-]
+// One unified list — the /admin and /teacher route split is gone, and so is
+// picking a link array by role. `permission` names one or more permission
+// strings from the backend's catalog (see backend/prisma/seed.js
+// CRUD_RESOURCES); a link shows if the user holds ANY of them (matching
+// requirePermission's OR semantics) — ADMIN always does, via the
+// Administrator role, so this naturally shows everything to an admin without
+// any role special-casing here. `adminOnly` is for the couple of pages with
+// no permission catalog entry at all (the backend still hardcodes ADMIN
+// there). Links with neither are own-data views every staff member can
+// always reach (their own dashboard/timetable/salaries/profile).
+function buildLinks(isTeacher) {
+    return [
+        {href: '/', label: 'Dashboard', icon: LayoutDashboard},
+        {href: '/students', label: 'Students', icon: GraduationCap, permission: 'students.view'},
+        {href: '/teachers', label: 'Teachers', icon: Users, permission: 'teachers.view'},
+        {href: '/classes', label: 'Classes', icon: School, permission: 'classes.view'},
+        {href: '/subjects', label: 'Subjects', icon: BookOpen, permission: 'subjects.view'},
+        {href: '/timetable', label: isTeacher ? 'My Timetable' : 'Timetable', icon: Clock},
+        {href: '/announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view'},
+        {href: '/mark-attendance', label: 'Mark Attendance', icon: ClipboardList, permission: ['attendance.create', 'teacherAttendance.create']},
+        {href: '/attendance-register', label: 'Attendance Register', icon: ListTodo, permission: 'attendance.view'},
+        {href: '/teacher-attendance', label: 'Teacher Attendance', icon: ListTodo, permission: 'teacherAttendance.view'},
+        {href: '/fees', label: 'Fee Management', icon: DollarSign, adminOnly: true},
+        {href: '/marks', label: isTeacher ? 'Enter Marks' : 'Marks/Exams', icon: Award},
+        {href: '/salaries', label: isTeacher ? 'My Salaries' : 'Teacher Salaries', icon: Banknote},
+        {href: '/reports', label: 'Reports', icon: FileText, permission: 'reports.view'},
+        {href: '/users', label: 'Users', icon: Users, permission: 'users.view'},
+        {href: '/roles', label: 'Roles', icon: ShieldCheck, permission: 'roles.view'},
+        {href: '/configurations', label: 'Configurations', icon: Settings, adminOnly: true},
+        {href: '/profile', label: 'My Profile', icon: User},
+    ]
+}
 
 const roleBadgeColors = {
     ADMIN: 'bg-amber-50   dark:bg-amber-400/15   text-amber-600   dark:text-amber-300   border-amber-200   dark:border-amber-400/20',
@@ -70,7 +71,7 @@ export default function Sidebar({
                                     mobileOpen = false, onClose = () => {
     }
                                 }) {
-    const {user, logout} = useAuth()
+    const {user, isTeacher, logout, hasPermission} = useAuth()
     const location = useLocation()
     const [collapsed, setCollapsed] = useState(() => {
         const saved = localStorage.getItem('sidebarCollapsed')
@@ -87,9 +88,14 @@ export default function Sidebar({
         onClose()
     }, [location.pathname])
 
-    const links = user?.role === 'ADMIN'
-        ? adminLinks
-        : teacherLinks
+    const links = buildLinks(isTeacher).filter(link => {
+        if (link.adminOnly) return user?.role === 'ADMIN'
+        if (link.permission) {
+            const names = Array.isArray(link.permission) ? link.permission : [link.permission]
+            return hasPermission(...names)
+        }
+        return true
+    })
 
     const getUserName = () => {
         if (user?.admin) return user.admin.name

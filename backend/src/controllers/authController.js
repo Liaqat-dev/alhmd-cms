@@ -5,6 +5,7 @@ const prisma = require('../lib/prisma');
 const { sendVerificationEmail, sendPasswordResetNotification, sendPasswordResetEmail } = require('../utils/emailService');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
+const { getUserPermissionNames } = require('../utils/permissions');
 const {
     REFRESH_TOKEN_EXPIRY_MS,
     EMAIL_VERIFICATION_EXPIRY_MS,
@@ -146,12 +147,13 @@ const login = catchAsync(async (req, res) => {
     setRefreshCookie(res, rawRefreshToken, REFRESH_COOKIE);
 
     const {password: _pw, ...userWithoutPassword} = user;
+    const permissions = await getUserPermissionNames(user);
 
     res.json({
         message: 'Login successful',
         accessToken,
         expiresIn: getAccessTokenExpiresIn(),
-        user: userWithoutPassword,
+        user: {...userWithoutPassword, permissions},
     });
 });
 
@@ -193,7 +195,7 @@ const studentLogin = catchAsync(async (req, res) => {
         message: 'Login successful',
         accessToken,
         expiresIn: getAccessTokenExpiresIn(),
-        user: shapeStudentUser(student),
+        user: {...shapeStudentUser(student), permissions: []},
     });
 });
 
@@ -317,7 +319,7 @@ const runRefresh = async (req, res, {cookieName, expectStudent}) => {
             clearRefreshCookie(res, cookieName);
             throw new AppError(401, {message: 'Account not active'}, 'ACCOUNT_INACTIVE');
         }
-        responseUser = shapeStudentUser(student);
+        responseUser = {...shapeStudentUser(student), permissions: []};
         tokenId = student.id;
         tokenRole = 'STUDENT';
     } else {
@@ -330,7 +332,11 @@ const runRefresh = async (req, res, {cookieName, expectStudent}) => {
             throw new AppError(401, {message: 'Account not active'}, 'ACCOUNT_INACTIVE');
         }
         const {password: _pw, ...rest} = user;
-        responseUser = rest;
+        // Recomputed fresh on every refresh (not carried over from the old
+        // token/response) so a permission change takes effect the next time
+        // this account's access token rotates, without needing to re-login.
+        const permissions = await getUserPermissionNames(user);
+        responseUser = {...rest, permissions};
         tokenId = user.id;
         tokenRole = user.role;
     }
@@ -409,7 +415,8 @@ const logoutAll = catchAsync(async (req, res) => {
 
 const getProfile = catchAsync(async (req, res) => {
     const {password: _pw, ...userWithoutPassword} = req.user;
-    res.json({user: userWithoutPassword});
+    const permissions = await getUserPermissionNames(req.user);
+    res.json({user: {...userWithoutPassword, permissions}});
 });
 
 // ── Change password (self-service, any authenticated account) ────────────────
@@ -642,6 +649,31 @@ const registerAdmin = catchAsync(async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
+    // Authorization is fully permission-driven — there is no hardcoded
+    // ADMIN bypass (see utils/permissions.js). So the very first admin must
+    // be given a Role that actually holds every permission, or they'd be
+    // locked out of everything immediately after registering, with no one
+    // else able to fix it (Role/User management is itself permission-gated).
+    // `prisma/seed.js` normally creates this "Administrator" role, but this
+    // endpoint has to be able to bootstrap it too, for a freshly migrated
+    // database that hasn't been seeded yet.
+    // NOTE: if the Permission catalog itself is empty (a schema-migrated but
+    // never-seeded database), this creates an Administrator role with no
+    // permissions to connect — `npm run seed` populates the catalog and is
+    // the expected first step in this app's deploy flow; this endpoint is a
+    // fallback for registering an admin without running it, not a
+    // replacement for it.
+    const allPermissions = await prisma.permission.findMany({select: {id: true}});
+    const adminRole = await prisma.role.upsert({
+        where: {name: 'Administrator'},
+        update: {permissions: {set: allPermissions}},
+        create: {
+            name: 'Administrator',
+            description: 'Full access to all system features',
+            permissions: {connect: allPermissions},
+        },
+    });
+
     // P2002 (duplicate email) bubbles up to the global error handler automatically
     const user = await prisma.user.create({
         data: {
@@ -650,6 +682,7 @@ const registerAdmin = catchAsync(async (req, res) => {
             role: 'ADMIN',
             isVerified: false,
             admin: {create: {name}},
+            roles: {connect: {id: adminRole.id}},
         },
         include: {admin: true},
     });

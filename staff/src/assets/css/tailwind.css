@@ -9,6 +9,10 @@
 /* ── Core ──────────────────────────────────────────────── */
 @import "tailwindcss";
 
+/* Shared components live outside this app's root, so Tailwind's automatic
+   content detection won't scan them without this explicit source. */
+@source "../../../../shared";
+
 /* ── Theme variables (@theme block) ────────────────────── */
 @import "./components/theme.css";
 

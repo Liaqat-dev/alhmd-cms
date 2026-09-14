@@ -113,7 +113,7 @@ export default function AddTeacher() {
                 title: 'Success',
                 description: isEditing ? 'Teacher updated successfully' : 'Teacher created successfully',
             })
-            navigate('/admin/teachers')
+            navigate('/teachers')
         },
     })
 
@@ -170,7 +170,7 @@ export default function AddTeacher() {
             setClassAssignments(assignments)
         } catch {
             toast({variant: 'destructive', title: 'Error', description: 'Failed to load teacher'})
-            navigate('/admin/teachers')
+            navigate('/teachers')
         } finally {
             setLoadingTeacher(false)
         }
@@ -588,7 +588,7 @@ export default function AddTeacher() {
                     <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 dark:border-dark-700">
                         <button
                             type="button"
-                            onClick={() => navigate('/admin/teachers')}
+                            onClick={() => navigate('/teachers')}
                             className="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors text-gray-500 dark:text-dark-400"
                         >
                             <ArrowLeft className="h-4 w-4"/>
@@ -638,7 +638,7 @@ export default function AddTeacher() {
 
                         {/* Footer */}
                         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-dark-700">
-                            <Button type="button" variant="outline" onClick={() => navigate('/admin/teachers')}>
+                            <Button type="button" variant="outline" onClick={() => navigate('/teachers')}>
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={isSubmitting}>

@@ -60,7 +60,7 @@ export default function AdminTeacherProfile() {
             setTeacher(res.data.teacher)
         } catch {
             toast({variant: 'destructive', title: 'Error', description: 'Failed to load teacher'})
-            navigate('/admin/teachers')
+            navigate('/teachers')
         } finally {
             setLoading(false)
         }
@@ -126,7 +126,7 @@ export default function AdminTeacherProfile() {
 
                 {/* Back nav */}
                 <button
-                    onClick={() => navigate('/admin/teachers')}
+                    onClick={() => navigate('/teachers')}
                     className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400 hover:text-gray-800 dark:hover:text-dark-100 transition-colors"
                 >
                     <ArrowLeft className="h-4 w-4"/>
@@ -159,7 +159,7 @@ export default function AdminTeacherProfile() {
                             size="sm"
                             variant="outline"
                             className="shrink-0"
-                            onClick={() => navigate(`/admin/teachers/edit/${id}`)}
+                            onClick={() => navigate(`/teachers/edit/${id}`)}
                         >
                             Edit
                         </Button>

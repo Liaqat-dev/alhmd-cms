@@ -46,8 +46,7 @@ export default function Login() {
                 description: `Welcome back, ${user.admin?.name || user.teacher?.name}!`,
             })
 
-            const role = user.admin ? 'admin' : 'teacher'
-            navigate(`/${role}`)
+            navigate('/')
         } catch (error) {
             const code = error.response?.data?.code
             const msg = error.response?.data?.message || 'Invalid credentials'

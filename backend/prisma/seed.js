@@ -75,18 +75,18 @@ async function main() {
 
   // ── Teachers (3) ─────────────────────────────────────────────────────────
   const teacherDefs = [
-    { email: 'ali.hassan@cga.edu',  name: 'Ali Hassan',   phone: '03001111111', address: '10 Model Town, Lahore',
+    { email: 'ali.hassan@gmail.com',  name: 'Ali Hassan',   phone: '03001111111', address: '10 Model Town, Lahore',
       tier: 'TIER_1',  additionalPay: 5000, basicSalary: 30000,
       qualifications: [
         { degreeTitle: 'BSc Mathematics', institute: 'University of the Punjab', startYear: 2010, endYear: 2014, totalMarksOrGpa: '4.0', obtainedMarksOrGpa: '3.6' },
         { degreeTitle: 'MSc Mathematics', institute: 'GC University Lahore', startYear: 2014, endYear: 2016, totalMarksOrGpa: '4.0', obtainedMarksOrGpa: '3.8' },
       ] },
-    { email: 'sara.ahmed@cga.edu',  name: 'Sara Ahmed',   phone: '03002222222', address: '20 Gulberg III, Lahore',
+    { email: 'sara.ahmed@gmail.com',  name: 'Sara Ahmed',   phone: '03002222222', address: '20 Gulberg III, Lahore',
       tier: 'TIER_2A', additionalPay: 3000, basicSalary: 22000,
       qualifications: [
         { degreeTitle: 'BA English Literature', institute: 'Kinnaird College', startYear: 2011, endYear: 2015, totalMarksOrGpa: '1100', obtainedMarksOrGpa: '920' },
       ] },
-    { email: 'aisha.malik@cga.edu', name: 'Aisha Malik',  phone: '03004444444', address: '89 Township, Lahore',
+    { email: 'aisha.malik@gmail.com', name: 'Aisha Malik',  phone: '03004444444', address: '89 Township, Lahore',
       tier: 'TIER_2B', additionalPay: 2000, basicSalary: 18000,
       qualifications: [
         { degreeTitle: 'BSc Physics', institute: 'University of Engineering & Technology Lahore', startYear: 2012, endYear: 2016, totalMarksOrGpa: '4.0', obtainedMarksOrGpa: '3.4' },
@@ -165,7 +165,7 @@ async function main() {
   for (let i = 0; i < studentDefs.length; i++) {
     const sd = studentDefs[i];
     const roll = `${String(i + 1).padStart(4, '0')}-${currentYear}`;
-    const email = `${roll}@school.edu`;
+    const email = `${roll}@gmail.com`;
 
     // Students are no longer backed by a User account — they log in with
     // rollNumber + password directly. Email is optional (password reset only).
@@ -351,7 +351,7 @@ async function main() {
   // ── Summary ────────────────────────────────────────────────────────────────
   console.log('\n── Seed complete ──────────────────────────────────────────────────');
   console.log('  Admin    : dev.liaqat13@gmail.com / admin123');
-  console.log('  Teachers : 3  (…@cga.edu / teacher123)');
+  console.log('  Teachers : 3  (…@gmail.com / teacher123)');
   console.log(`  Students : 3  Login with rollNumber as password (0001-${currentYear} … 0003-${currentYear}).`);
   console.log('  Classes  : ICS-I / ENG-I');
   console.log(`  Timetable: ${mTTDefs.length} slots`);

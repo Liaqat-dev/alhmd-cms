@@ -208,6 +208,11 @@ export const morningFeesAPI = {
   downloadPDF: (id) => api.get(`/morning-fees/${id}/pdf`, { responseType: 'blob' }),
 }
 
+// Payment Info API
+export const paymentInfoAPI = {
+  getAll: () => api.get('/payment-info'),
+}
+
 // Student Expenses API
 export const studentExpensesAPI = {
   getByStudent: (studentId) => api.get('/student-expenses', { params: { studentId } }),

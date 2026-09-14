@@ -114,7 +114,7 @@ export default function AdminStudents() {
                     countLabel="total students"
                     addLabel="Add Student"
                     onAdd={() => navigate({
-                        pathname: '/admin/students/add',
+                        pathname: '/students/add',
                         search: searchParams.toString()
                     })}
                 >
@@ -202,7 +202,7 @@ export default function AdminStudents() {
                                                 <button
                                                     className="flex items-center gap-2.5 text-left hover:opacity-80 transition-opacity"
                                                     onClick={() => navigate({
-                                                        pathname: `/admin/students/${student.id}/profile`,
+                                                        pathname: `/students/${student.id}/profile`,
                                                         search: searchParams.toString()
                                                     })}
                                                 >
@@ -239,7 +239,7 @@ export default function AdminStudents() {
                                             <td className="px-4 py-3 align-middle">
                                                 <ActionButtons
                                                     onEdit={() => navigate({
-                                                        pathname: `/admin/students/edit/${student.id}`,
+                                                        pathname: `/students/edit/${student.id}`,
                                                         search: searchParams.toString()
                                                     })}
                                                     onDelete={() => handleDelete(student.id)}

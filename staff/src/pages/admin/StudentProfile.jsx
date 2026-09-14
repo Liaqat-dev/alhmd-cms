@@ -87,7 +87,7 @@ export default function AdminStudentProfile() {
             } catch {
                 toast({variant: 'destructive', title: 'Error', description: 'Failed to load student'})
                 navigate({
-                    pathname: '/admin/students',
+                    pathname: '/students',
                     search: searchParams.toString()
                 })
             } finally {
@@ -128,7 +128,7 @@ export default function AdminStudentProfile() {
                 {/* Back nav */}
                 <button
                     onClick={() => navigate({
-                        pathname: '/admin/students',
+                        pathname: '/students',
                         search: searchParams.toString()
                     })}
                     className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400 hover:text-gray-800 dark:hover:text-dark-100 transition-colors"
@@ -162,7 +162,7 @@ export default function AdminStudentProfile() {
                             size="sm"
                             variant="outline"
                             className="shrink-0"
-                            onClick={() => navigate(`/admin/students/edit/${id}`)}
+                            onClick={() => navigate(`/students/edit/${id}`)}
                         >
                             Edit
                         </Button>

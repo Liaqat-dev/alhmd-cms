@@ -166,6 +166,15 @@ export const subjectsAPI = {
   delete: (id) => api.delete(`/subjects/${id}`),
 }
 
+// Payment Info API
+export const paymentInfoAPI = {
+  getAll: () => api.get('/payment-info'),
+  getById: (id) => api.get(`/payment-info/${id}`),
+  create: (data) => api.post('/payment-info', data),
+  update: (id, data) => api.put(`/payment-info/${id}`, data),
+  delete: (id) => api.delete(`/payment-info/${id}`),
+}
+
 // Announcements API
 export const announcementsAPI = {
   getAll: (params) => api.get('/announcements', { params }),

@@ -187,7 +187,7 @@ function SubjectCard({ subj, idx }) {
 
                 {/* CTA */}
                 <Link
-                    to={`/teacher/attendance/${subj.classId}`}
+                    to={`/mark-attendance/${subj.classId}`}
                     className={`mt-auto flex items-center justify-center gap-2 w-full rounded-lg py-2.5 text-sm font-semibold transition-all duration-150
                         bg-foreground/5 hover:bg-primary hover:text-primary-foreground border border-border/60 hover:border-primary
                         text-foreground group-hover:border-primary/50`}

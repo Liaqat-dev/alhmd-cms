@@ -9,25 +9,24 @@ import UserAvatar from '@/components/shared/UserAvatar'
 import {PALETTES, useTheme} from '@/hooks/useTheme'
 
 const breadcrumbMap = {
-    '/admin': 'Dashboard',
-    '/admin/students': 'Students',
-    '/admin/teachers': 'Teachers',
-    '/admin/classes': 'Classes',
-    '/admin/subjects': 'Subjects',
-    '/admin/timetable': 'Timetable',
-    '/admin/announcements': 'Announcements',
-    '/admin/events': 'Events',
-    '/admin/fees': 'Fee Management',
-    '/admin/marks': 'Marks & Exams',
-    '/admin/salaries': 'Teacher Salaries',
-    '/admin/reports': 'Reports',
-    '/admin/profile': 'My Profile',
-    '/teacher': 'Dashboard',
-    '/teacher/timetable': 'My Timetable',
-    '/teacher/attendance': 'Attendance',
-    '/teacher/marks': 'Enter Marks',
-    '/teacher/profile': 'My Profile',
-    '/teacher/reports': 'Reports',
+    '/': 'Dashboard',
+    '/students': 'Students',
+    '/teachers': 'Teachers',
+    '/classes': 'Classes',
+    '/subjects': 'Subjects',
+    '/timetable': 'Timetable',
+    '/announcements': 'Announcements',
+    '/events': 'Events',
+    '/fees': 'Fee Management',
+    '/marks': 'Marks & Exams',
+    '/salaries': 'Teacher Salaries',
+    '/reports': 'Reports',
+    '/profile': 'My Profile',
+    '/mark-attendance': 'Mark Attendance',
+    '/attendance-register': 'Attendance Register',
+    '/teacher-attendance': 'Teacher Attendance',
+    '/users': 'Users',
+    '/roles': 'Roles',
 }
 
 export default function Header({title, onMenuToggle, mobileMenuOpen}) {
@@ -42,16 +41,14 @@ export default function Header({title, onMenuToggle, mobileMenuOpen}) {
 
     const {isDark, toggleDark, palette, setPalette} = useTheme()
 
-    const profileRoute = user?.role === 'ADMIN'
-        ? '/admin/profile'
-        : '/teacher/profile'
-
     const userName = user?.admin?.name || user?.teacher?.name || 'User'
     const userEmail = user?.email || ''
     const userInitial = userName.charAt(0).toUpperCase()
 
-    const pathSegments = location.pathname.split('/').filter(Boolean)
-    const rolePrefix = pathSegments[0]
+    const roleLabelMap = {
+        ADMIN: 'Administrator',
+        TEACHER: 'Teacher',
+    }
     const currentPage = breadcrumbMap[location.pathname] || title
 
     useEffect(() => {
@@ -66,11 +63,6 @@ export default function Header({title, onMenuToggle, mobileMenuOpen}) {
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
     }, [])
-
-    const roleLabelMap = {
-        ADMIN: 'Administrator',
-        TEACHER: 'Teacher',
-    }
 
     return (
         <header className="header-glass sticky top-0 z-50 p-2 xs:px-6 py-3">
@@ -87,7 +79,7 @@ export default function Header({title, onMenuToggle, mobileMenuOpen}) {
                     {/* Breadcrumb + Title — desktop only */}
                     <div className="hidden md:flex flex-col min-w-0">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                            <span className="capitalize font-medium">{rolePrefix}</span>
+                            <span className="capitalize font-medium">{roleLabelMap[user?.role] || user?.role}</span>
                             {currentPage && currentPage !== 'Dashboard' && (
                                 <>
                                     <span className="text-muted-foreground/40">/</span>
@@ -229,7 +221,7 @@ export default function Header({title, onMenuToggle, mobileMenuOpen}) {
                                     <button
                                         onClick={() => {
                                             setDropdownOpen(false);
-                                            navigate(profileRoute)
+                                            navigate('/profile')
                                         }}
                                         className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-foreground/80 hover:bg-muted/60 transition-colors"
                                     >

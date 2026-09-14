@@ -160,7 +160,7 @@ export default function AddStudent() {
                 toast({title: 'Success', description: 'Student updated successfully'})
             }
             navigate({
-                pathname: '/admin/students',
+                pathname: '/students',
                 search: searchParams.toString()
             })
         },
@@ -226,7 +226,7 @@ export default function AddStudent() {
         } catch {
             toast({variant: 'destructive', title: 'Error', description: 'Failed to load student'})
             navigate({
-                pathname: '/admin/students',
+                pathname: '/students',
                 search: searchParams.toString()
             })
         } finally {
@@ -776,7 +776,7 @@ export default function AddStudent() {
                 {/* Back nav */}
                 <button
                     onClick={() => navigate({
-                        pathname: '/admin/students',
+                        pathname: '/students',
                         search: searchParams.toString()
                     })}
                     className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-dark-400 hover:text-gray-800 dark:hover:text-dark-100 transition-colors"
@@ -833,7 +833,7 @@ export default function AddStudent() {
                                 type="button"
                                 variant="outline"
                                 onClick={() => navigate({
-                                    pathname: '/admin/students',
+                                    pathname: '/students',
                                     search: searchParams.toString()
                                 })}
                             >

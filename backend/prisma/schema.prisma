@@ -664,3 +664,17 @@ model PaymentHistory {
   @@index([receivedBy])
   @@index([paymentType])
 }
+
+// ── Payment Info (configuration) ────────────────────────────────────────────
+// Bank/payment account details admins maintain under Configurations →
+// Payment Info, shown to payers alongside fee challans.
+
+model PaymentInfo {
+  id            Int      @id @default(autoincrement())
+  bankName      String
+  accountTitle  String
+  accountNumber String
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

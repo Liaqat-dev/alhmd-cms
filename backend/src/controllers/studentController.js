@@ -59,10 +59,9 @@ const getStudentById = catchAsync(async (req, res) => {
   const { id } = req.params;
   const studentId = parseInt(id, 10);
 
-  // Students can only access their own profile
-  if (req.user.role === 'STUDENT' && req.user.student?.id !== studentId) {
-    throw new AppError(403, 'Access denied. You can only access your own profile.');
-  }
+  // Ownership (a student viewing their own profile) vs. students.view
+  // permission is already enforced by the allowSelfOrPermission route
+  // middleware — see routes/students.js.
 
   const student = await prisma.student.findUnique({
     where: { id: studentId },

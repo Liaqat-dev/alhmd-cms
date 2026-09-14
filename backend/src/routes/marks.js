@@ -8,24 +8,24 @@ const requirePermission = require('../middleware/requirePermission');
 // All routes require authentication
 router.use(auth);
 
-// Exam management (Admin, Teacher)
-router.get('/exams', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.view'), marksController.getAllExams);
+// Exam management
+router.get('/exams', requirePermission('marks.view'), marksController.getAllExams);
+// Own-data route — account-kind dispatch, not a permission tier.
 router.get('/exams/teacher', roleCheck('TEACHER'), marksController.getTeacherExams);
-router.get('/exams/:id', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.view'), marksController.getExamById);
-router.post('/exams', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.create'), marksController.createExam);
-router.put('/exams/:id', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.edit'), marksController.updateExam);
-router.delete('/exams/:id', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.delete'), marksController.deleteExam);
+router.get('/exams/:id', requirePermission('marks.view'), marksController.getExamById);
+router.post('/exams', requirePermission('marks.create'), marksController.createExam);
+router.put('/exams/:id', requirePermission('marks.edit'), marksController.updateExam);
+router.delete('/exams/:id', requirePermission('marks.delete'), marksController.deleteExam);
 
-// Marks entry (Teacher, Admin) — entering/updating marks is an edit action
-router.post('/enter', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.edit'), marksController.enterMarks);
-router.get('/class/:examId', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.view'), marksController.getClassMarks);
+// Marks entry — entering/updating marks is an edit action
+router.post('/enter', requirePermission('marks.edit'), marksController.enterMarks);
+router.get('/class/:examId', requirePermission('marks.view'), marksController.getClassMarks);
 
-// Student marks (Student can view their own)
+// Own-data routes — a student viewing their own marks.
 router.get('/my-marks', roleCheck('STUDENT'), marksController.getStudentMarks);
 router.get('/my-marks/subjects', roleCheck('STUDENT'), marksController.getSubjectWiseMarks);
 
-// Admin/Teacher view student marks
-router.get('/student/:studentId', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.view'), marksController.getStudentMarks);
-router.get('/student/:studentId/subjects', roleCheck('ADMIN', 'TEACHER'), requirePermission('marks.view'), marksController.getSubjectWiseMarks);
+router.get('/student/:studentId', requirePermission('marks.view'), marksController.getStudentMarks);
+router.get('/student/:studentId/subjects', requirePermission('marks.view'), marksController.getSubjectWiseMarks);
 
 module.exports = router;

@@ -24,6 +24,7 @@ const morningSalaryRoutes = require('./routes/morningSalaries');
 const studentExpenseRoutes = require('./routes/studentExpenses');
 const usersRoutes = require('./routes/users');
 const rolesRoutes = require('./routes/roles');
+const paymentInfoRoutes = require('./routes/paymentInfo');
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.use('/api/morning-salaries', morningSalaryRoutes);
 app.use('/api/student-expenses', studentExpenseRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/roles', rolesRoutes);
+app.use('/api/payment-info', paymentInfoRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

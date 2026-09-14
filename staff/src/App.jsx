@@ -1,45 +1,48 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import RoleSwitch from './components/shared/RoleSwitch'
 import Login from './pages/auth/Login'
 import VerifyEmail from './pages/auth/VerifyEmail'
 import CheckEmail from './pages/auth/CheckEmail'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import AdminDashboard from './pages/admin/Dashboard'
-import AdminStudents from './pages/admin/Students'
-import AddStudent from './pages/admin/AddStudent'
-import AdminStudentProfile from './pages/admin/StudentProfile'
-import AdminTeachers from './pages/admin/Teachers'
-import AddTeacher from './pages/admin/AddTeacher'
-import AdminTeacherProfile from './pages/admin/TeacherProfile'
-import AdminClasses from './pages/admin/Classes'
-import AdminSubjects from './pages/admin/Subjects'
-import AdminAnnouncements from './pages/admin/Announcements'
-import AdminEvents from './pages/admin/Events'
-import AdminTimetable from './pages/admin/Timetable'
-import AdminFees from './pages/admin/Fees'
-import AdminMarks from './pages/admin/Marks'
-import AdminReports from './pages/admin/Reports'
-import AdminSalaries from './pages/admin/Salaries'
-import AdminAttendanceRegister from './pages/admin/AttendanceRegister'
-import TeacherAttendanceRegister from './pages/admin/AttendanceRegister'
-import AdminTeacherAttendance from './pages/admin/TeacherAttendance'
-import AdminMarkAttendance from './pages/admin/MarkAttendance'
-import MarkTeacherAttendance from './pages/admin/MarkTeacherAttendance'
-import AdminProfile from './pages/admin/Profile'
-import AdminUsers from './pages/admin/Users'
-import AdminRoles from './pages/admin/Roles'
 import TeacherDashboard from './pages/teacher/Dashboard'
-import TeacherMarks from './pages/teacher/Marks'
-import TeacherAttendance from './pages/teacher/Attendance'
+import Students from './pages/admin/Students'
+import AddStudent from './pages/admin/AddStudent'
+import StudentProfile from './pages/admin/StudentProfile'
+import Teachers from './pages/admin/Teachers'
+import AddTeacher from './pages/admin/AddTeacher'
+import TeacherProfile from './pages/admin/TeacherProfile'
+import Classes from './pages/admin/Classes'
+import Subjects from './pages/admin/Subjects'
+import Announcements from './pages/admin/Announcements'
+import Events from './pages/admin/Events'
+import AdminTimetable from './pages/admin/Timetable'
 import TeacherTimetable from './pages/teacher/Timetable'
-import TeacherProfile from './pages/teacher/Profile'
-import TeacherReports from './pages/teacher/Reports'
+import Fees from './pages/admin/Fees'
+import AdminMarks from './pages/admin/Marks'
+import TeacherMarks from './pages/teacher/Marks'
+import Reports from './pages/Reports'
+import AdminSalaries from './pages/admin/Salaries'
 import TeacherSalaries from './pages/teacher/Salaries'
+import AttendanceRegister from './pages/admin/AttendanceRegister'
+import TeacherAttendance from './pages/admin/TeacherAttendance'
+import MarkAttendance from './pages/MarkAttendance'
+import Profile from './pages/Profile'
+import Users from './pages/admin/Users'
+import Roles from './pages/admin/Roles'
+import Configurations from './pages/admin/Configurations'
 import { Toaster } from './components/ui/toaster'
 
-function ProtectedRoute({ children, allowedRoles }) {
-  const { user, loading } = useAuth()
+// `permission` (a string or array — ANY of them passes, same as the
+// backend's requirePermission) gates fine-grained access to a shared
+// resource. `adminOnly` is for the handful of pages with no permission
+// catalog entry at all (the backend itself still hardcodes ADMIN there).
+// Omit both for pages every authenticated staff member can reach (their own
+// dashboard/profile/timetable/etc — RoleSwitch decides what they actually see).
+function ProtectedRoute({ children, permission, adminOnly }) {
+  const { user, loading, hasPermission } = useAuth()
 
   if (loading) {
     return (
@@ -49,19 +52,18 @@ function ProtectedRoute({ children, allowedRoles }) {
     )
   }
 
-  if (!user) {
+  if (!user || user.role === 'STUDENT') {
     return <Navigate to="/login" replace />
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect to appropriate dashboard based on role
-    switch (user.role) {
-      case 'ADMIN':
-        return <Navigate to="/admin" replace />
-      case 'TEACHER':
-        return <Navigate to="/teacher" replace />
-      default:
-        return <Navigate to="/login" replace />
+  if (adminOnly && user.role !== 'ADMIN') {
+    return <Navigate to="/" replace />
+  }
+
+  if (permission) {
+    const names = Array.isArray(permission) ? permission : [permission]
+    if (!hasPermission(...names)) {
+      return <Navigate to="/" replace />
     }
   }
 
@@ -86,7 +88,7 @@ function App() {
           path="/login"
           element={
             user && user.role !== 'STUDENT'
-              ? <Navigate to={`/${user.role.toLowerCase()}`} replace />
+              ? <Navigate to="/" replace />
               : <Login />
           }
         />
@@ -97,293 +99,60 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Admin Routes */}
+        {/* Dashboard */}
         <Route
-          path="/admin"
+          path="/"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/students"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminStudents />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/students/:id/profile"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminStudentProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/students/add"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AddStudent />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/students/edit/:id"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AddStudent />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/teachers"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminTeachers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/teachers/:id/profile"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminTeacherProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/teachers/add"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AddTeacher />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/teachers/edit/:id"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AddTeacher />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/classes"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminClasses />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/subjects"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminSubjects />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/announcements"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminAnnouncements />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/events"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminEvents />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/timetable"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminTimetable />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/fees"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminFees />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/marks"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminMarks />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/reports"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminReports />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/salaries"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminSalaries />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/mark-attendance"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminMarkAttendance />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/attendance"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminAttendanceRegister />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/teacher-attendance"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminTeacherAttendance />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/mark-teacher-attendance"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <MarkTeacherAttendance />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/profile"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/users"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminUsers />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/roles"
-          element={
-            <ProtectedRoute allowedRoles={['ADMIN']}>
-              <AdminRoles />
+            <ProtectedRoute>
+              <RoleSwitch admin={AdminDashboard} teacher={TeacherDashboard} />
             </ProtectedRoute>
           }
         />
 
-        {/* Teacher Routes */}
-        <Route
-          path="/teacher"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/attendance"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherAttendance />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/attendance/:classId"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherAttendance />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/class-register"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherAttendanceRegister />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/mark-teacher-attendance"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <MarkTeacherAttendance />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/timetable"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherTimetable />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/marks"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherMarks />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/reports"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherReports />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/profile"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherProfile />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/teacher/salaries"
-          element={
-            <ProtectedRoute allowedRoles={['TEACHER']}>
-              <TeacherSalaries />
-            </ProtectedRoute>
-          }
-        />
+        {/* Students */}
+        <Route path="/students" element={<ProtectedRoute permission="students.view"><Students /></ProtectedRoute>} />
+        <Route path="/students/:id/profile" element={<ProtectedRoute permission="students.view"><StudentProfile /></ProtectedRoute>} />
+        <Route path="/students/add" element={<ProtectedRoute permission="students.create"><AddStudent /></ProtectedRoute>} />
+        <Route path="/students/edit/:id" element={<ProtectedRoute permission="students.edit"><AddStudent /></ProtectedRoute>} />
+
+        {/* Teachers */}
+        <Route path="/teachers" element={<ProtectedRoute permission="teachers.view"><Teachers /></ProtectedRoute>} />
+        <Route path="/teachers/:id/profile" element={<ProtectedRoute permission="teachers.view"><TeacherProfile /></ProtectedRoute>} />
+        <Route path="/teachers/add" element={<ProtectedRoute permission="teachers.create"><AddTeacher /></ProtectedRoute>} />
+        <Route path="/teachers/edit/:id" element={<ProtectedRoute permission="teachers.edit"><AddTeacher /></ProtectedRoute>} />
+
+        <Route path="/classes" element={<ProtectedRoute permission="classes.view"><Classes /></ProtectedRoute>} />
+        <Route path="/subjects" element={<ProtectedRoute permission="subjects.view"><Subjects /></ProtectedRoute>} />
+        <Route path="/announcements" element={<ProtectedRoute permission="announcements.view"><Announcements /></ProtectedRoute>} />
+
+        {/* No permission catalog entry for these — backend still hardcodes ADMIN */}
+        <Route path="/events" element={<ProtectedRoute adminOnly><Events /></ProtectedRoute>} />
+        <Route path="/fees" element={<ProtectedRoute adminOnly><Fees /></ProtectedRoute>} />
+
+        {/* Own-data pairs — content picked by role, no extra gate needed */}
+        <Route path="/timetable" element={<ProtectedRoute><RoleSwitch admin={AdminTimetable} teacher={TeacherTimetable} /></ProtectedRoute>} />
+        <Route path="/marks" element={<ProtectedRoute><RoleSwitch admin={AdminMarks} teacher={TeacherMarks} /></ProtectedRoute>} />
+        <Route path="/salaries" element={<ProtectedRoute><RoleSwitch admin={AdminSalaries} teacher={TeacherSalaries} /></ProtectedRoute>} />
+
+        <Route path="/reports" element={<ProtectedRoute permission="reports.view"><Reports /></ProtectedRoute>} />
+
+        {/* Attendance — marking students and teachers is one shared screen;
+            MarkAttendance itself decides tabs vs. a single panel based on
+            which of the two permissions the user actually holds. */}
+        <Route path="/mark-attendance" element={<ProtectedRoute permission={['attendance.create', 'teacherAttendance.create']}><MarkAttendance /></ProtectedRoute>} />
+        <Route path="/mark-attendance/:classId" element={<ProtectedRoute permission={['attendance.create', 'teacherAttendance.create']}><MarkAttendance /></ProtectedRoute>} />
+        <Route path="/attendance-register" element={<ProtectedRoute permission="attendance.view"><AttendanceRegister /></ProtectedRoute>} />
+        <Route path="/teacher-attendance" element={<ProtectedRoute permission="teacherAttendance.view"><TeacherAttendance /></ProtectedRoute>} />
+
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+
+        {/* RBAC control plane — see routes/users.js, routes/roles.js */}
+        <Route path="/users" element={<ProtectedRoute permission="users.view"><Users /></ProtectedRoute>} />
+        <Route path="/roles" element={<ProtectedRoute permission="roles.view"><Roles /></ProtectedRoute>} />
+        <Route path="/configurations" element={<ProtectedRoute adminOnly><Configurations /></ProtectedRoute>} />
 
         {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
       </Routes>
       <Toaster />
     </>

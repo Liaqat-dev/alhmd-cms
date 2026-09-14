@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table'
-import {morningFeesAPI} from '@/services/api'
+import {morningFeesAPI, paymentInfoAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {AlertCircle, Building2, CheckCircle, Clock, CreditCard, Download, Printer, Receipt, Wallet,} from 'lucide-react'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
@@ -26,10 +26,12 @@ export default function MorningFees() {
     const [challans, setChallans] = useState([])
     const [arrears, setArrears] = useState(0)
     const [loading, setLoading] = useState(true)
+    const [paymentInfo, setPaymentInfo] = useState([])
     const {toast} = useToast()
 
     useEffect(() => {
         fetchChallans()
+        fetchPaymentInfo()
     }, [])
 
     const fetchChallans = async () => {
@@ -45,6 +47,15 @@ export default function MorningFees() {
             })
         } finally {
             setLoading(false)
+        }
+    }
+
+    const fetchPaymentInfo = async () => {
+        try {
+            const res = await paymentInfoAPI.getAll()
+            setPaymentInfo(res.data.paymentInfo || [])
+        } catch {
+            // Non-critical — the fees page still works without payment info
         }
     }
 
@@ -71,6 +82,14 @@ export default function MorningFees() {
 
     const printChallan = (challan) => {
         const printWindow = window.open('', '_blank')
+        const bankDetailsHtml = paymentInfo.length > 0
+            ? paymentInfo.map(p => `
+              <p><strong>Account Title:</strong> ${p.accountTitle}</p>
+              <p><strong>Account Number:</strong> ${p.accountNumber}</p>
+              <p><strong>Bank Name:</strong> ${p.bankName}</p>
+              ${p.notes ? `<p><em>${p.notes}</em></p>` : ''}
+            `).join('<hr style="border: none; border-top: 1px dashed #fde68a; margin: 12px 0;">')
+            : '<p>Contact the administration for payment details.</p>'
         const content = `
       <!DOCTYPE html>
       <html>
@@ -131,9 +150,7 @@ export default function MorningFees() {
         </table>
         <div class="bank-details">
           <h3>Online Payment Details</h3>
-          <p><strong>Account Title:</strong> Cambridge Grads Academy</p>
-          <p><strong>Account Number:</strong> PK48BAHL5637008100066901S</p>
-          <p><strong>Bank Name:</strong> Bank Al Habib Ltd</p>
+          ${bankDetailsHtml}
           <p style="margin-bottom: 0;"><em>Please mention challan number in payment reference</em></p>
         </div>
         <div class="footer">
@@ -366,44 +383,45 @@ export default function MorningFees() {
             </PagePanel>
 
             {/* Bank Details Card */}
-            <Card className="mt-6">
-                <CardHeader className="pb-4">
-                    <CardTitle className="text-lg flex items-center gap-2.5">
-                        <div className="h-7 w-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                            <Building2 className="h-4 w-4 text-amber-600"/>
-                        </div>
-                        Payment Information
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="p-5 bg-amber-50/50 rounded-xl border border-amber-200/60">
-                        <h4 className="font-semibold text-sm text-amber-900 mb-4 flex items-center gap-2">
-                            <CreditCard className="h-4 w-4"/>
-                            Online Bank Transfer Details
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                            <div className="space-y-1">
-                                <p className="text-xs font-medium text-amber-700/70 uppercase tracking-wider">Account
-                                    Title</p>
-                                <p className="font-semibold text-sm text-amber-900">Cambridge Grads Academy</p>
+            {paymentInfo.length > 0 && (
+                <Card className="mt-6">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-lg flex items-center gap-2.5">
+                            <div className="h-7 w-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                <Building2 className="h-4 w-4 text-amber-600"/>
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-xs font-medium text-amber-700/70 uppercase tracking-wider">Account
-                                    Number</p>
-                                <p className="font-semibold text-sm font-mono text-amber-900">PK48BAHL5637008100066901S</p>
+                            Payment Information
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {paymentInfo.map((info) => (
+                            <div key={info.id} className="p-5 bg-amber-50/50 rounded-xl border border-amber-200/60">
+                                <h4 className="font-semibold text-sm text-amber-900 mb-4 flex items-center gap-2">
+                                    <CreditCard className="h-4 w-4"/>
+                                    {info.bankName}
+                                </h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-medium text-amber-700/70 uppercase tracking-wider">Account
+                                            Title</p>
+                                        <p className="font-semibold text-sm text-amber-900">{info.accountTitle}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-xs font-medium text-amber-700/70 uppercase tracking-wider">Account
+                                            Number / IBAN</p>
+                                        <p className="font-semibold text-sm font-mono text-amber-900">{info.accountNumber}</p>
+                                    </div>
+                                </div>
+                                {info.notes && (
+                                    <p className="text-xs text-amber-700 mt-4 pt-4 border-t border-amber-200/60">
+                                        {info.notes}
+                                    </p>
+                                )}
                             </div>
-                            <div className="space-y-1">
-                                <p className="text-xs font-medium text-amber-700/70 uppercase tracking-wider">Bank
-                                    Name</p>
-                                <p className="font-semibold text-sm text-amber-900">Bank Al Habib Ltd</p>
-                            </div>
-                        </div>
-                        <p className="text-xs text-amber-700 mt-4 pt-4 border-t border-amber-200/60">
-                            Please mention your challan number in the payment reference for quick processing.
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
+                        ))}
+                    </CardContent>
+                </Card>
+            )}
         </>
     )
 }

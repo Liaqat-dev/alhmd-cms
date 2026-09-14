@@ -84,6 +84,22 @@ export function AuthProvider({ children }) {
   // Patch user state locally after a profile update (e.g. profile pic change)
   const updateUser = (patch) => setUser(prev => prev ? { ...prev, ...patch } : prev)
 
+  // Mirrors the backend's userHasPermission bypass rule exactly: ADMIN always
+  // passes, STUDENT isn't part of RBAC. Everyone else needs the permission
+  // name in the list the server attached to `user` at login/refresh time.
+  //
+  // This exists purely to hide/show UI (nav links, "create" buttons, etc.) —
+  // it is NOT a security boundary. The backend independently re-checks every
+  // request via requirePermission regardless of what this returns, so a
+  // stale or tampered value here can make the UI wrong but can never grant
+  // real access.
+  const hasPermission = (...permissionNames) => {
+    if (!user) return false
+    if (user.role === 'ADMIN') return true
+    if (user.role === 'STUDENT') return false
+    return permissionNames.some((name) => user.permissions?.includes(name))
+  }
+
   const value = {
     user,
     login,
@@ -94,6 +110,7 @@ export function AuthProvider({ children }) {
     isAdmin: user?.role === 'ADMIN',
     isTeacher: user?.role === 'TEACHER',
     isStudent: user?.role === 'STUDENT',
+    hasPermission,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

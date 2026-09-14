@@ -2,13 +2,15 @@ const express = require('express');
 const router = express.Router();
 const usersController = require('../controllers/usersController');
 const auth = require('../middleware/auth');
-const roleCheck = require('../middleware/roleCheck');
+const requirePermission = require('../middleware/requirePermission');
 
-// Admin-only: Users tab manages Teacher/Admin accounts and their roles.
-router.use(auth, roleCheck('ADMIN'));
+router.use(auth);
 
-router.get('/', usersController.getAllUsers);
-router.get('/:id', usersController.getUserById);
-router.put('/:id/roles', usersController.assignRoles);
+// Users tab manages Teacher/Admin accounts and their roles. Permission-gated
+// like everything else — see roles.js for why users.manage/roles.edit are
+// treated as effectively admin-equivalent permissions.
+router.get('/', requirePermission('users.view'), usersController.getAllUsers);
+router.get('/:id', requirePermission('users.view'), usersController.getUserById);
+router.put('/:id/roles', requirePermission('users.manage'), usersController.assignRoles);
 
 module.exports = router;

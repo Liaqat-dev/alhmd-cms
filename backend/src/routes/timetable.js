@@ -19,16 +19,14 @@ router.get('/my-timetable', (req, res, next) => {
   }
 });
 
-// Get timetable by class (Admin, Teacher)
-router.get('/class/:classId', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.view'), timetableController.getTimetableByClass);
+router.get('/class/:classId', requirePermission('timetable.view'), timetableController.getTimetableByClass);
 
-// Get timetable by teacher (Admin only)
+// Get timetable by teacher (Admin only — no permission defined for this narrow lookup)
 router.get('/teacher/:teacherId', roleCheck('ADMIN'), timetableController.getTimetableByTeacher);
 
-// Admin always allowed; Teacher needs the matching permission via their role.
-router.post('/', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.create'), timetableController.createTimetableEntry);
-router.put('/:id', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.edit'), timetableController.updateTimetableEntry);
-router.delete('/:id', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.delete'), timetableController.deleteTimetableEntry);
-router.delete('/class/:classId/clear', roleCheck('ADMIN', 'TEACHER'), requirePermission('timetable.delete'), timetableController.clearClassTimetable);
+router.post('/', requirePermission('timetable.create'), timetableController.createTimetableEntry);
+router.put('/:id', requirePermission('timetable.edit'), timetableController.updateTimetableEntry);
+router.delete('/:id', requirePermission('timetable.delete'), timetableController.deleteTimetableEntry);
+router.delete('/class/:classId/clear', requirePermission('timetable.delete'), timetableController.clearClassTimetable);
 
 module.exports = router;

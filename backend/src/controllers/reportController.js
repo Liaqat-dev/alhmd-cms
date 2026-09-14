@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
+const {userHasPermission} = require('../utils/permissions');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -263,6 +264,20 @@ const getReportById = catchAsync(async (req, res) => {
         where: {id}, include: {student: studentInclude}
     });
     if (!report) throw new AppError(404, 'Report not found');
+
+    // Ownership (a student viewing their own report) vs. reports.view
+    // permission — this can't be a route-level middleware check like
+    // allowSelfOrPermission, because the resource's owner (report.studentId)
+    // isn't known until after this lookup: the :id here is the report's own
+    // id, not the student's.
+    if (req.user.role === 'STUDENT') {
+        if (report.studentId !== req.user.id) {
+            throw new AppError(403, 'You do not have permission to view this report.');
+        }
+    } else {
+        const allowed = await userHasPermission(req.user, 'reports.view');
+        if (!allowed) throw new AppError(403, 'You do not have permission to view this report.');
+    }
 
     const startDate = new Date(report.year, report.month - 1, 1);
     const endDate = new Date(report.year, report.month, 0);

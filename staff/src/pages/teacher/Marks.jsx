@@ -11,6 +11,7 @@ import {marksAPI, teachersAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {ClipboardCheck, FileText, GraduationCap, Plus, Users} from 'lucide-react'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
+import {useAuth} from '@/context/AuthContext'
 
 const EXAM_TYPES = [
     {value: 'MONTHLY_TEST', label: 'Monthly Test'},
@@ -32,6 +33,9 @@ const initialFormData = {
 }
 
 export default function TeacherMarks() {
+    const {hasPermission} = useAuth()
+    const canCreateExam = hasPermission('marks.create')
+    const canEnterMarks = hasPermission('marks.edit')
     const [exams, setExams] = useState([])
     const [myClasses, setMyClasses] = useState([]) // one row per assigned class+subject pair
     const [loading, setLoading] = useState(true)
@@ -240,7 +244,7 @@ export default function TeacherMarks() {
                 icon={GraduationCap}
                 title={'My Class Exams'}
                 countLabel={'Create exams & Mark your classes'}
-                addLabel={'Create Exam'}
+                addLabel={canCreateExam ? 'Create Exam' : undefined}
                 onAdd={handleOpenDialog}
             >
                 {loading ? (
@@ -264,12 +268,16 @@ export default function TeacherMarks() {
                         </div>
                         <h3 className="text-lg font-semibold mb-1">No exams yet</h3>
                         <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                            Create your first exam to start entering marks for your students.
+                            {canCreateExam
+                                ? 'Create your first exam to start entering marks for your students.'
+                                : 'No exams have been created for your classes yet.'}
                         </p>
-                        <Button onClick={handleOpenDialog} size="sm" className="gap-2">
-                            <Plus className="h-4 w-4"/>
-                            Create Exam
-                        </Button>
+                        {canCreateExam && (
+                            <Button onClick={handleOpenDialog} size="sm" className="gap-2">
+                                <Plus className="h-4 w-4"/>
+                                Create Exam
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     <Table>
@@ -311,15 +319,17 @@ export default function TeacherMarks() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex justify-end">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => openMarksDialog(exam)}
-                                                className="gap-1.5 h-8 text-xs"
-                                            >
-                                                <ClipboardCheck className="h-3.5 w-3.5"/>
-                                                Enter Marks
-                                            </Button>
+                                            {canEnterMarks && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => openMarksDialog(exam)}
+                                                    className="gap-1.5 h-8 text-xs"
+                                                >
+                                                    <ClipboardCheck className="h-3.5 w-3.5"/>
+                                                    Enter Marks
+                                                </Button>
+                                            )}
                                         </div>
                                     </TableCell>
                                 </TableRow>

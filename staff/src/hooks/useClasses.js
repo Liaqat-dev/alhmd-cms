@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { classesAPI } from '@/services/api'
 
-export function useClasses() {
+export function useClasses({ enabled = true } = {}) {
   const [classes, setClasses] = useState([])
   const [classesLoading, setClassesLoading] = useState(false)
   const fetchCount = useRef(0)
@@ -18,8 +18,8 @@ export function useClasses() {
   }, [])
 
   useEffect(() => {
-    fetchClasses()
-  }, [fetchClasses])
+    if (enabled) fetchClasses()
+  }, [enabled, fetchClasses])
 
   return {
     classes,

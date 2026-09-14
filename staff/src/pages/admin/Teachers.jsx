@@ -76,7 +76,7 @@ export default function AdminTeachers() {
                     count={totalTeachers}
                     countLabel="total teachers"
                     addLabel="Add Teacher"
-                    onAdd={() => navigate('/admin/teachers/add')}
+                    onAdd={() => navigate('/teachers/add')}
                 >
                     <div className="flex justify-end">
                         <div className="bg-white w-full xs:min-w-36 xs:max-w-64 relative mb-6">
@@ -112,7 +112,7 @@ export default function AdminTeachers() {
                                             <td className="px-4 py-3 align-middle">
                                                 <button
                                                     className="flex items-center gap-2.5 text-left hover:opacity-80 transition-opacity"
-                                                    onClick={() => navigate(`/admin/teachers/${teacher.id}/profile`)}
+                                                    onClick={() => navigate(`/teachers/${teacher.id}/profile`)}
                                                 >
                                                     <UserAvatar name={teacher.name} profilePicUrl={teacher.user?.profilePicUrl} size="sm" />
                                                     <span className="font-medium whitespace-nowrap text-gray-800 dark:text-dark-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">{teacher.name}</span>
@@ -140,7 +140,7 @@ export default function AdminTeachers() {
                                             </td>
                                             <td className="px-4 py-3 align-middle">
                                                 <ActionButtons
-                                                    onEdit={() => navigate(`/admin/teachers/edit/${teacher.id}`)}
+                                                    onEdit={() => navigate(`/teachers/edit/${teacher.id}`)}
                                                     onDelete={() => handleDelete(teacher.id)}
                                                 />
                                             </td>
