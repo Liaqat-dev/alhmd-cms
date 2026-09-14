@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { attendanceAPI } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -104,7 +103,9 @@ function TeacherRow({ teacher }) {
     )
 }
 
-export default function TeacherAttendancePage() {
+// Monthly attendance register for teachers — pick a month/year, see each
+// teacher's present/absent/leave tally and attendance percentage.
+export default function TeacherAttendanceRegisterPanel() {
     const [month, setMonth] = useState(new Date().getMonth() + 1)
     const [year, setYear]   = useState(new Date().getFullYear())
     const [data, setData]   = useState([])
@@ -149,87 +150,85 @@ export default function TeacherAttendancePage() {
     }, [filtered])
 
     return (
-        <DashboardLayout title="Teacher Attendance">
-            <div className="space-y-4">
+        <div className="space-y-4">
 
-                {/* Filters */}
-                <div className="card p-4">
-                    <div className="flex flex-wrap gap-3 items-end">
-                        <div className="w-36">
-                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Month</label>
-                            <Select value={String(month)} onValueChange={v => setMonth(parseInt(v))}>
-                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="w-24">
-                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Year</label>
-                            <Select value={String(year)} onValueChange={v => setYear(parseInt(v))}>
-                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    {YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex-1 min-w-[180px] max-w-xs">
-                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Search</label>
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                                <Input
-                                    value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                    placeholder="Search teacher…"
-                                    className="pl-8 h-9 text-sm"
-                                />
-                            </div>
+            {/* Filters */}
+            <div className="card p-4">
+                <div className="flex flex-wrap gap-3 items-end">
+                    <div className="w-36">
+                        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Month</label>
+                        <Select value={String(month)} onValueChange={v => setMonth(parseInt(v))}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="w-24">
+                        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Year</label>
+                        <Select value={String(year)} onValueChange={v => setYear(parseInt(v))}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                {YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex-1 min-w-[180px] max-w-xs">
+                        <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">Search</label>
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                            <Input
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder="Search teacher…"
+                                className="pl-8 h-9 text-sm"
+                            />
                         </div>
                     </div>
                 </div>
-
-                {/* Stats */}
-                {stats && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <StatCard label="Total Teachers" value={stats.total}
-                            icon={Users} gradient="from-sky-500/10 to-sky-600/5" iconColor="text-sky-600" />
-                        <StatCard label="Avg Attendance" value={stats.avgPct > 0 ? `${stats.avgPct}%` : '—'}
-                            icon={TrendingUp} gradient="from-emerald-500/10 to-emerald-600/5" iconColor="text-emerald-600" />
-                        <StatCard label="Perfect Attendance" value={stats.perfect}
-                            icon={Star} gradient="from-violet-500/10 to-violet-600/5" iconColor="text-violet-600" />
-                        <StatCard label="At Risk (<75%)" value={stats.atRisk}
-                            icon={AlertTriangle} gradient="from-rose-500/10 to-rose-600/5" iconColor="text-rose-600" />
-                    </div>
-                )}
-
-                {/* Content */}
-                {loading ? (
-                    <div className="flex items-center justify-center py-20">
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-                    </div>
-                ) : filtered.length > 0 ? (
-                    <div className="grid gap-2.5 sm:grid-cols-1 lg:grid-cols-2">
-                        {filtered.map(teacher => (
-                            <TeacherRow key={teacher.teacherId} teacher={teacher} />
-                        ))}
-                    </div>
-                ) : (
-                    <div className="card flex flex-col items-center justify-center py-20 gap-3">
-                        <div className="rounded-full bg-muted/60 p-5">
-                            <GraduationCap className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                        <p className="text-sm font-semibold">
-                            {search ? 'No teachers match your search' : `No teacher data for ${monthLabel} ${year}`}
-                        </p>
-                        {!search && (
-                            <p className="text-xs text-muted-foreground text-center max-w-xs">
-                                Attendance is marked by an admin or authorized teacher for each day.
-                            </p>
-                        )}
-                    </div>
-                )}
-
             </div>
-        </DashboardLayout>
+
+            {/* Stats */}
+            {stats && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    <StatCard label="Total Teachers" value={stats.total}
+                        icon={Users} gradient="from-sky-500/10 to-sky-600/5" iconColor="text-sky-600" />
+                    <StatCard label="Avg Attendance" value={stats.avgPct > 0 ? `${stats.avgPct}%` : '—'}
+                        icon={TrendingUp} gradient="from-emerald-500/10 to-emerald-600/5" iconColor="text-emerald-600" />
+                    <StatCard label="Perfect Attendance" value={stats.perfect}
+                        icon={Star} gradient="from-violet-500/10 to-violet-600/5" iconColor="text-violet-600" />
+                    <StatCard label="At Risk (<75%)" value={stats.atRisk}
+                        icon={AlertTriangle} gradient="from-rose-500/10 to-rose-600/5" iconColor="text-rose-600" />
+                </div>
+            )}
+
+            {/* Content */}
+            {loading ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                </div>
+            ) : filtered.length > 0 ? (
+                <div className="grid gap-2.5 sm:grid-cols-1 lg:grid-cols-2">
+                    {filtered.map(teacher => (
+                        <TeacherRow key={teacher.teacherId} teacher={teacher} />
+                    ))}
+                </div>
+            ) : (
+                <div className="card flex flex-col items-center justify-center py-20 gap-3">
+                    <div className="rounded-full bg-muted/60 p-5">
+                        <GraduationCap className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm font-semibold">
+                        {search ? 'No teachers match your search' : `No teacher data for ${monthLabel} ${year}`}
+                    </p>
+                    {!search && (
+                        <p className="text-xs text-muted-foreground text-center max-w-xs">
+                            Attendance is marked by an admin or authorized teacher for each day.
+                        </p>
+                    )}
+                </div>
+            )}
+
+        </div>
     )
 }

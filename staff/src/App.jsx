@@ -26,8 +26,7 @@ import TeacherMarks from './pages/teacher/Marks'
 import Reports from './pages/Reports'
 import AdminSalaries from './pages/admin/Salaries'
 import TeacherSalaries from './pages/teacher/Salaries'
-import AttendanceRegister from './pages/admin/AttendanceRegister'
-import TeacherAttendance from './pages/admin/TeacherAttendance'
+import AttendanceRegister from './pages/AttendanceRegister'
 import MarkAttendance from './pages/MarkAttendance'
 import Profile from './pages/Profile'
 import Users from './pages/admin/Users'
@@ -141,8 +140,7 @@ function App() {
             which of the two permissions the user actually holds. */}
         <Route path="/mark-attendance" element={<ProtectedRoute permission={['attendance.create', 'teacherAttendance.create']}><MarkAttendance /></ProtectedRoute>} />
         <Route path="/mark-attendance/:classId" element={<ProtectedRoute permission={['attendance.create', 'teacherAttendance.create']}><MarkAttendance /></ProtectedRoute>} />
-        <Route path="/attendance-register" element={<ProtectedRoute permission="attendance.view"><AttendanceRegister /></ProtectedRoute>} />
-        <Route path="/teacher-attendance" element={<ProtectedRoute permission="teacherAttendance.view"><TeacherAttendance /></ProtectedRoute>} />
+        <Route path="/attendance-register" element={<ProtectedRoute permission={['attendance.view', 'teacherAttendance.view']}><AttendanceRegister /></ProtectedRoute>} />
 
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 

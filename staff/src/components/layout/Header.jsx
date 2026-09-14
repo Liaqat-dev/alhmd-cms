@@ -24,7 +24,6 @@ const breadcrumbMap = {
     '/profile': 'My Profile',
     '/mark-attendance': 'Mark Attendance',
     '/attendance-register': 'Attendance Register',
-    '/teacher-attendance': 'Teacher Attendance',
     '/users': 'Users',
     '/roles': 'Roles',
 }
