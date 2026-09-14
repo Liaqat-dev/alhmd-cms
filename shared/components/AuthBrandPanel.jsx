@@ -1,4 +1,4 @@
-import Logo from '@/images/LOGO.png'
+import Logo from '@/images/logo.png'
 import { INSTITUTE_NAME } from '@shared/config/institute'
 
 const FEATURES = [
