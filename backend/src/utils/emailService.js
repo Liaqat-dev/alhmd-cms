@@ -1,20 +1,21 @@
-const { Resend } = require('resend');
+const { BrevoClient } = require('@getbrevo/brevo');
 const { INSTITUTE_NAME, INSTITUTE_TAG } = require('../config/constants');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
 
 const appName = () => INSTITUTE_NAME;
 const frontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:5173';
-const fromAddress = () => process.env.EMAIL_FROM || `${appName()} <onboarding@resend.dev>`;
+const senderEmail = () => process.env.EMAIL_FROM || 'no-reply@brevo.com';
+const sender = () => ({ name: appName(), email: senderEmail() });
 
 const sendVerificationEmail = async (email, name, verificationToken) => {
   const verifyUrl = `${frontendUrl()}/verify-email?token=${verificationToken}`;
 
-  await resend.emails.send({
-    from: fromAddress(),
-    to: email,
+  await brevo.transactionalEmails.sendTransacEmail({
+    sender: sender(),
+    to: [{ email }],
     subject: `Verify your ${appName()} account`,
-    html: `
+    htmlContent: `
       <!DOCTYPE html>
       <html>
       <head><meta charset="utf-8"></head>
@@ -57,11 +58,11 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
 };
 
 const sendPasswordResetNotification = async (email, name) => {
-  await resend.emails.send({
-    from: fromAddress(),
-    to: email,
+  await brevo.transactionalEmails.sendTransacEmail({
+    sender: sender(),
+    to: [{ email }],
     subject: `Your ${appName()} password was reset`,
-    html: `
+    htmlContent: `
       <!DOCTYPE html>
       <html>
       <head><meta charset="utf-8"></head>
@@ -98,11 +99,11 @@ const sendPasswordResetNotification = async (email, name) => {
 const sendPasswordResetEmail = async (email, name, resetToken) => {
   const resetUrl = `${frontendUrl()}/reset-password?token=${resetToken}`;
 
-  await resend.emails.send({
-    from: fromAddress(),
-    to: email,
+  await brevo.transactionalEmails.sendTransacEmail({
+    sender: sender(),
+    to: [{ email }],
     subject: `Reset your ${appName()} password`,
-    html: `
+    htmlContent: `
       <!DOCTYPE html>
       <html>
       <head><meta charset="utf-8"></head>

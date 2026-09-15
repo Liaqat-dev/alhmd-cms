@@ -151,7 +151,7 @@ function StatRow({ stats }) {
     )
 }
 
-function SubjectCard({ subj, idx }) {
+function ClassCard({ cls, idx }) {
     const accent = SUBJECT_ACCENTS[idx % SUBJECT_ACCENTS.length]
 
     return (
@@ -164,15 +164,15 @@ function SubjectCard({ subj, idx }) {
                 <div className="flex items-start justify-between gap-2 mb-4">
                     <div className="min-w-0 flex-1">
                         <h3 className="tch-display text-xl font-semibold text-foreground leading-tight truncate">
-                            {subj.subjectName}
+                            {cls.className}
                         </h3>
                         <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
                             <School className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">{subj.className}</span>
-                            {subj.gradeLevel && (
+                            <span className="truncate">{cls.subjectNames.join(', ')}</span>
+                            {cls.gradeLevel && (
                                 <>
                                     <span className="text-border">·</span>
-                                    <span className="text-muted-foreground/70 truncate">{subj.gradeLevel}</span>
+                                    <span className="text-muted-foreground/70 truncate">{cls.gradeLevel}</span>
                                 </>
                             )}
                         </div>
@@ -181,13 +181,13 @@ function SubjectCard({ subj, idx }) {
                     {/* Student count badge */}
                     <span className={`flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${accent.badge}`}>
                         <Users className="h-3 w-3" />
-                        {subj.studentCount}
+                        {cls.studentCount}
                     </span>
                 </div>
 
                 {/* CTA */}
                 <Link
-                    to={`/mark-attendance/${subj.classId}`}
+                    to={`/mark-attendance/${cls.classId}`}
                     className={`mt-auto flex items-center justify-center gap-2 w-full rounded-lg py-2.5 text-sm font-semibold transition-all duration-150
                         bg-foreground/5 hover:bg-primary hover:text-primary-foreground border border-border/60 hover:border-primary
                         text-foreground group-hover:border-primary/50`}
@@ -273,7 +273,7 @@ export default function TeacherDashboard() {
         )
     }
 
-    const { teacher, stats, subjects = [] } = teacherStats ?? {}
+    const { teacher, stats, classes = [] } = teacherStats ?? {}
 
     return (
         <>
@@ -287,7 +287,7 @@ export default function TeacherDashboard() {
                     {/* Stats row */}
                     <StatRow stats={stats} />
 
-                    {/* Subjects section */}
+                    {/* Classes section */}
                     <div className="rounded-2xl border border-border bg-card shadow-sm">
                         <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-4 border-b border-border/50">
                             <div className="flex items-center gap-3">
@@ -296,25 +296,25 @@ export default function TeacherDashboard() {
                                 </div>
                                 <div>
                                     <h2 className="tch-display text-lg font-bold text-foreground tracking-tight">
-                                        Your Subjects
+                                        Your Classes
                                     </h2>
                                     <p className="text-xs text-muted-foreground mt-0.5">
-                                        Mark attendance for each assigned subject
+                                        Mark attendance for each assigned class
                                     </p>
                                 </div>
                             </div>
-                            {subjects.length > 0 && (
+                            {classes.length > 0 && (
                                 <div className="h-6 min-w-6 px-2 flex items-center justify-center rounded-full bg-primary/10">
-                                    <span className="tch-num text-xs font-bold text-primary">{subjects.length}</span>
+                                    <span className="tch-num text-xs font-bold text-primary">{classes.length}</span>
                                 </div>
                             )}
                         </div>
 
                         <div className="p-5">
-                            {subjects.length > 0 ? (
+                            {classes.length > 0 ? (
                                 <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                                    {subjects.map((subj, idx) => (
-                                        <SubjectCard key={subj.key} subj={subj} idx={idx} />
+                                    {classes.map((cls, idx) => (
+                                        <ClassCard key={cls.key} cls={cls} idx={idx} />
                                     ))}
                                 </div>
                             ) : (

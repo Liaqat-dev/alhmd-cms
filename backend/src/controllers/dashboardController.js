@@ -118,15 +118,26 @@ const getTeacherStats = catchAsync(async (req, res) => {
         leave:   todayAttendance.filter(a => a.status === 'LEAVE').length
       }
     },
-    subjects: subjectClassPairs.map(p => ({
-      key: `${p.classId}:${p.subjectId}`,
-      subjectId: p.subjectId,
-      subjectName: p.subjectName,
-      classId: p.classId,
-      className: p.className,
-      gradeLevel: p.gradeLevel,
-      studentCount: classStudentMap[p.classId]?.size ?? 0
-    }))
+    // Attendance is marked per class, not per subject — group the
+    // (subject, class) pairs down to one card per class so a teacher who
+    // teaches several subjects in the same class isn't shown duplicate
+    // "Mark Attendance" cards for it.
+    classes: Object.values(
+      subjectClassPairs.reduce((acc, p) => {
+        if (!acc[p.classId]) {
+          acc[p.classId] = {
+            key: String(p.classId),
+            classId: p.classId,
+            className: p.className,
+            gradeLevel: p.gradeLevel,
+            subjectNames: [],
+            studentCount: classStudentMap[p.classId]?.size ?? 0
+          };
+        }
+        acc[p.classId].subjectNames.push(p.subjectName);
+        return acc;
+      }, {})
+    )
   });
 });
 

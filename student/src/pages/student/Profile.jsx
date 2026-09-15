@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast'
 import ProfilePicUpload from '@/components/shared/ProfilePicUpload'
 import {
   User, Hash, Phone, MapPin, Key, LogOut, CalendarDays,
-  GraduationCap, Loader2, Eye, EyeOff, BookOpen,
+  GraduationCap, Loader2, Eye, EyeOff, BookOpen, IdCard,
 } from 'lucide-react'
 
 function InfoRow({ label, value, icon: Icon }) {
@@ -140,6 +140,7 @@ export default function StudentProfile() {
               <InfoRow label="Full Name"      value={name}                icon={User} />
               <InfoRow label="Roll Number"    value={rollNumber}           icon={Hash} />
               <InfoRow label="Father's Name"  value={details?.fatherName}  icon={User} />
+              <InfoRow label="CNIC / B-Form"  value={details?.cnic}        icon={IdCard} />
               <InfoRow label="Gender"         value={details?.gender} />
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Date of Birth</p>
