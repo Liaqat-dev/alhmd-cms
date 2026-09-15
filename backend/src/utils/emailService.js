@@ -4,12 +4,18 @@ const { INSTITUTE_NAME, INSTITUTE_TAG } = require('../config/constants');
 const brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
 
 const appName = () => INSTITUTE_NAME;
-const frontendUrl = () => process.env.FRONTEND_URL || 'http://localhost:5173';
+// FRONTEND_URL is a comma-separated CORS allowlist (staff + student origins
+// together) — not usable as-is for building a link into one specific portal.
+// Each portal gets its own single-origin env var instead.
+const staffFrontendUrl = () => process.env.STAFF_FRONTEND_URL || 'http://localhost:5173';
+const studentFrontendUrl = () => process.env.STUDENT_FRONTEND_URL || 'http://localhost:5174';
 const senderEmail = () => process.env.EMAIL_FROM || 'no-reply@brevo.com';
 const sender = () => ({ name: appName(), email: senderEmail() });
 
+// Verification is a staff-only (admin/teacher) flow — students are added by
+// an admin and never self-verify an email.
 const sendVerificationEmail = async (email, name, verificationToken) => {
-  const verifyUrl = `${frontendUrl()}/verify-email?token=${verificationToken}`;
+  const verifyUrl = `${staffFrontendUrl()}/verify-email?token=${verificationToken}`;
 
   await brevo.transactionalEmails.sendTransacEmail({
     sender: sender(),
@@ -96,8 +102,14 @@ const sendPasswordResetNotification = async (email, name) => {
   });
 };
 
-const sendPasswordResetEmail = async (email, name, resetToken) => {
-  const resetUrl = `${frontendUrl()}/reset-password?token=${resetToken}`;
+// `portal` picks which frontend the reset link points at — 'staff' for the
+// admin/teacher forgot-password flow, 'student' for the student one. The
+// same token works against either portal's /reset-password page since
+// resetPasswordWithToken is shared, but the link must land the person on
+// the app they actually use.
+const sendPasswordResetEmail = async (email, name, resetToken, portal = 'staff') => {
+  const base = portal === 'student' ? studentFrontendUrl() : staffFrontendUrl();
+  const resetUrl = `${base}/reset-password?token=${resetToken}`;
 
   await brevo.transactionalEmails.sendTransacEmail({
     sender: sender(),

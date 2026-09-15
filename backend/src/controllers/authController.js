@@ -544,7 +544,7 @@ const forgotPassword = catchAsync(async (req, res) => {
     });
 
     const name = user.admin?.name || user.teacher?.name || 'User';
-    sendPasswordResetEmail(email, name, rawToken).catch(() => { /* non-blocking */ });
+    sendPasswordResetEmail(email, name, rawToken, 'staff').catch(() => { /* non-blocking */ });
 
     res.json({ message: successMsg });
 });
@@ -574,7 +574,7 @@ const studentForgotPassword = catchAsync(async (req, res) => {
         data: { studentId: student.id, tokenHash, expiresAt },
     });
 
-    sendPasswordResetEmail(email, student.name, rawToken).catch(() => { /* non-blocking */ });
+    sendPasswordResetEmail(email, student.name, rawToken, 'student').catch(() => { /* non-blocking */ });
 
     res.json({ message: successMsg });
 });
