@@ -38,6 +38,7 @@ const studentInclude = {
     id: true,
     name: true,
     rollNumber: true,
+    fatherName: true,
     morningEnrollment: { include: { morningClass: true } }
   }
 };
@@ -72,7 +73,7 @@ const getChallanById = catchAsync(async (req, res) => {
   const { id } = req.params;
   const challan = await prisma.morningChallan.findUnique({
     where: { id },
-    include: { student: studentInclude }
+    include: { expenses: true, student: studentInclude }
   });
   if (!challan) throw new AppError(404, 'Challan not found');
   res.json({ challan: mapChallan(challan) });
@@ -84,7 +85,7 @@ const getStudentChallans = catchAsync(async (req, res) => {
 
   const challans = await prisma.morningChallan.findMany({
     where: { studentId },
-    include: { student: studentInclude },
+    include: { expenses: true, student: studentInclude },
     orderBy: [{ year: 'desc' }, { month: 'desc' }]
   });
 

@@ -9,12 +9,16 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog'
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {reportsAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {
     Award,
     BarChart3,
     Calendar,
+    Download,
+    Eye,
     FileText,
     MessageSquare,
     Printer,
@@ -43,8 +47,12 @@ export default function StudentReports() {
     const [reports, setReports] = useState([])
     const [loading, setLoading] = useState(true)
     const [printingId, setPrintingId] = useState(null)
+    const [downloadingId, setDownloadingId] = useState(null)
     const [monthFilter, setMonthFilter] = useState('all')
     const [yearFilter, setYearFilter] = useState('all')
+    const [viewDialogOpen, setViewDialogOpen] = useState(false)
+    const [selectedReport, setSelectedReport] = useState(null)
+    const [viewLoading, setViewLoading] = useState(false)
     const {toast} = useToast()
 
     useEffect(() => {
@@ -96,6 +104,38 @@ export default function StudentReports() {
             printReport(report, [])
         } finally {
             setPrintingId(null)
+        }
+    }
+
+    const handleView = async (report) => {
+        setViewDialogOpen(true)
+        setViewLoading(true)
+        try {
+            const res = await reportsAPI.getById(report.id)
+            setSelectedReport(res.data)
+        } catch {
+            toast({variant: 'destructive', title: 'Error', description: 'Failed to fetch report details'})
+            setViewDialogOpen(false)
+        } finally {
+            setViewLoading(false)
+        }
+    }
+
+    const handleDownload = async (report) => {
+        setDownloadingId(report.id)
+        try {
+            const res = await reportsAPI.downloadPDF(report.id)
+            const blob = new Blob([res.data], {type: 'application/pdf'})
+            const url = window.URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `report-${report.student?.rollNumber || report.id}-${report.month}-${report.year}.pdf`
+            link.click()
+            window.URL.revokeObjectURL(url)
+        } catch {
+            toast({variant: 'destructive', title: 'Error', description: 'Failed to download PDF'})
+        } finally {
+            setDownloadingId(null)
         }
     }
 
@@ -274,7 +314,7 @@ export default function StudentReports() {
                                         key={report.id}
                                         className="card p-5 hover:bg-muted/30 transition-colors"
                                     >
-                                        <div className="flex items-start justify-between gap-4 mb-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
                                             <div>
                                                 <h3 className="font-semibold text-base">
                                                     {getMonthName(report.month)} {report.year}
@@ -291,16 +331,37 @@ export default function StudentReports() {
                             </span>
                                                 </div>
                                             </div>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => handlePrint(report)}
-                                                disabled={printingId === report.id}
-                                                className="gap-1.5 h-8 text-xs shrink-0"
-                                            >
-                                                <Printer className="h-3.5 w-3.5"/>
-                                                {printingId === report.id ? 'Loading...' : 'Print'}
-                                            </Button>
+                                            <div className="flex items-center gap-1.5 flex-wrap sm:shrink-0">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleView(report)}
+                                                    className="gap-1.5 h-8 text-xs"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5"/>
+                                                    View
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handlePrint(report)}
+                                                    disabled={printingId === report.id}
+                                                    className="gap-1.5 h-8 text-xs"
+                                                >
+                                                    <Printer className="h-3.5 w-3.5"/>
+                                                    {printingId === report.id ? 'Loading...' : 'Print'}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleDownload(report)}
+                                                    disabled={downloadingId === report.id}
+                                                    className="gap-1.5 h-8 text-xs"
+                                                >
+                                                    <Download className="h-3.5 w-3.5"/>
+                                                    {downloadingId === report.id ? 'Downloading...' : 'PDF'}
+                                                </Button>
+                                            </div>
                                         </div>
 
                                         {/* Teacher Remarks */}
@@ -357,6 +418,167 @@ export default function StudentReports() {
                     </PagePanel>
                 </>
             )}
+
+            {/* View Report Dialog */}
+            <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+                <DialogContent className="max-w-3xl w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                <Eye className="h-4 w-4 text-primary"/>
+                            </div>
+                            <span className="truncate">
+                                {selectedReport?.report && (
+                                    <>
+                                        {getMonthName(selectedReport.report.month)} {selectedReport.report.year} Report
+                                    </>
+                                )}
+                            </span>
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {viewLoading ? (
+                        <div className="py-16 text-center text-sm text-muted-foreground">Loading report...</div>
+                    ) : selectedReport && (
+                        <div className="space-y-4 pt-2">
+                            {/* Summary */}
+                            <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
+                                <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Calendar className="h-4 w-4 text-muted-foreground"/>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Attendance</p>
+                                    </div>
+                                    <p className="text-2xl font-bold">{Number(selectedReport.report.attendancePercentage).toFixed(1)}%</p>
+                                    <div className="w-full bg-muted rounded-full h-1.5 mt-2">
+                                        <div
+                                            className={`h-1.5 rounded-full transition-all ${Number(selectedReport.report.attendancePercentage) >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                                            style={{width: `${Math.min(Number(selectedReport.report.attendancePercentage), 100)}%`}}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        Present: {selectedReport.report.totalPresent} | Absent: {selectedReport.report.totalAbsent} | Leave: {selectedReport.report.totalLeave}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <TrendingUp className="h-4 w-4 text-muted-foreground"/>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Academic</p>
+                                    </div>
+                                    <p className="text-2xl font-bold">
+                                        {selectedReport.report.averageMarks ? `${Number(selectedReport.report.averageMarks).toFixed(1)}%` : 'N/A'}
+                                    </p>
+                                    {selectedReport.report.averageMarks && (
+                                        <div className="w-full bg-muted rounded-full h-1.5 mt-2">
+                                            <div
+                                                className={`h-1.5 rounded-full transition-all ${Number(selectedReport.report.averageMarks) >= 50 ? 'bg-emerald-500' : 'bg-rose-500'}`}
+                                                style={{width: `${Math.min(Number(selectedReport.report.averageMarks), 100)}%`}}
+                                            />
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        Exams: {selectedReport.report.totalExams} | Passed: {selectedReport.report.examsPassed}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Subject-wise breakdown */}
+                            {selectedReport.details?.subjects?.length > 0 && (
+                                <div className="space-y-3">
+                                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                                        <BarChart3 className="h-4 w-4 text-muted-foreground"/>
+                                        Subject-wise Performance
+                                    </h4>
+                                    {selectedReport.details.subjects.map((subj) => (
+                                        <div key={subj.subjectId} className="rounded-lg border overflow-hidden">
+                                            <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b">
+                                                <span className="font-semibold text-sm">{subj.subjectName}</span>
+                                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                                    {subj.percentage && (
+                                                        <span className={`font-semibold ${Number(subj.percentage) >= 50 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            {subj.percentage}%
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow className="bg-muted/20 hover:bg-muted/20">
+                                                        <TableHead className="font-semibold text-xs">Exam</TableHead>
+                                                        <TableHead className="font-semibold text-xs">Type</TableHead>
+                                                        <TableHead className="font-semibold text-xs text-center">Marks</TableHead>
+                                                        <TableHead className="font-semibold text-xs text-center">Grade</TableHead>
+                                                        <TableHead className="font-semibold text-xs">Remarks</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {subj.exams.map((exam, idx) => (
+                                                        <TableRow key={idx} className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/10'}>
+                                                            <TableCell className="text-sm font-medium">{exam.title}</TableCell>
+                                                            <TableCell className="text-xs text-muted-foreground">{exam.examType.replace(/_/g, ' ')}</TableCell>
+                                                            <TableCell className="text-center font-mono text-sm">
+                                                                {exam.notTaken ? (
+                                                                    <span className="text-xs text-muted-foreground italic">Not taken</span>
+                                                                ) : (
+                                                                    <>
+                                                                        <span className={Number(exam.obtainedMarks) >= exam.passingMarks ? 'text-emerald-600 font-semibold' : 'text-rose-600 font-semibold'}>
+                                                                            {Number(exam.obtainedMarks)}
+                                                                        </span>
+                                                                        <span className="text-muted-foreground">/{exam.totalMarks}</span>
+                                                                    </>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {exam.notTaken ? (
+                                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground">—</span>
+                                                                ) : (
+                                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold ${Number(exam.obtainedMarks) >= exam.passingMarks ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                                                                        {exam.grade || '—'}
+                                                                    </span>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-xs text-muted-foreground italic">
+                                                                {exam.notTaken ? '—' : (exam.remarks || '—')}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Teacher Remarks */}
+                            {selectedReport.report?.teacherRemarks && (
+                                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider mb-1">Teacher's Remarks</p>
+                                    <p className="text-sm text-amber-900">{selectedReport.report.teacherRemarks}</p>
+                                </div>
+                            )}
+
+                            <DialogFooter className="pt-2">
+                                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>Close</Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={() => printReport(selectedReport.report, selectedReport.details?.subjects || [])}
+                                    className="gap-2"
+                                >
+                                    <Printer className="h-4 w-4"/>
+                                    Print
+                                </Button>
+                                <Button
+                                    onClick={() => handleDownload(selectedReport.report)}
+                                    disabled={downloadingId === selectedReport.report.id}
+                                    className="gap-2"
+                                >
+                                    <Download className="h-4 w-4"/>
+                                    {downloadingId === selectedReport.report.id ? 'Downloading...' : 'Download PDF'}
+                                </Button>
+                            </DialogFooter>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </DashboardLayout>
     )
 }

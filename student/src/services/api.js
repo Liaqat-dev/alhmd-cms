@@ -264,4 +264,5 @@ export const reportsAPI = {
   getMyReports: () => api.get('/reports/my-reports'),
   getStudentReports: (studentId) => api.get(`/reports/student/${studentId}`),
   getClassSummary: (params) => api.get('/reports/class-summary', { params }),
+  downloadPDF: (id) => api.get(`/reports/${id}/download`, { responseType: 'blob' }),
 }

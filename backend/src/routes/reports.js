@@ -22,6 +22,9 @@ router.get('/my-reports', roleCheck('STUDENT'), reportController.getStudentRepor
 // the controller, since the owner isn't known until after the DB lookup.
 router.get('/:id', reportController.getReportById);
 
+// Download report as PDF — same ownership rule as above.
+router.get('/:id/download', reportController.downloadReportPDF);
+
 router.get('/student/:studentId', requirePermission('reports.view'), reportController.getStudentReports);
 
 module.exports = router;

@@ -2,6 +2,7 @@ const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const {userHasPermission} = require('../utils/permissions');
+const {generateReportPDF} = require('../utils/reportPDF');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,9 @@ const studentInclude = {
         id: true,
         name: true,
         rollNumber: true,
+        fatherName: true,
+        academicYear: true,
+        status: true,
         morningEnrollment: {include: {morningClass: {select: {id: true, name: true}}}}
     }
 };
@@ -271,7 +275,7 @@ const getReportById = catchAsync(async (req, res) => {
     // isn't known until after this lookup: the :id here is the report's own
     // id, not the student's.
     if (req.user.role === 'STUDENT') {
-        if (report.studentId !== req.user.id) {
+        if (report.studentId !== req.user.student?.id) {
             throw new AppError(403, 'You do not have permission to view this report.');
         }
     } else {
@@ -287,6 +291,35 @@ const getReportById = catchAsync(async (req, res) => {
     res.json({
         report: mapReport(report), details: {subjects}
     });
+});
+
+// GET /reports/:id/download
+const downloadReportPDF = catchAsync(async (req, res) => {
+    const {id} = req.params;
+
+    const report = await prisma.morningMonthlyReport.findUnique({
+        where: {id}, include: {student: studentInclude}
+    });
+    if (!report) throw new AppError(404, 'Report not found');
+
+    if (req.user.role === 'STUDENT') {
+        if (report.studentId !== req.user.student?.id) {
+            throw new AppError(403, 'You do not have permission to view this report.');
+        }
+    } else {
+        const allowed = await userHasPermission(req.user, 'reports.view');
+        if (!allowed) throw new AppError(403, 'You do not have permission to view this report.');
+    }
+
+    const startDate = new Date(report.year, report.month - 1, 1);
+    const endDate = new Date(report.year, report.month, 0);
+    const subjects = await fetchSubjectDetails(report.studentId, startDate, endDate, report.student);
+
+    const mapped = mapReport(report);
+    const filename = `report-${mapped.student?.rollNumber || mapped.studentId}-${report.month}-${report.year}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    generateReportPDF(mapped, subjects, res);
 });
 
 // GET /reports/student/:studentId  (or /reports/my for student role)
@@ -387,6 +420,7 @@ module.exports = {
     generateClassReports,
     getAllReports,
     getReportById,
+    downloadReportPDF,
     getStudentReports,
     updateReportRemarks,
     deleteReport,

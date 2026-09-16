@@ -6,7 +6,8 @@ import {morningFeesAPI, paymentInfoAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {AlertCircle, Building2, CheckCircle, Clock, CreditCard, Download, Printer, Receipt, Wallet,} from 'lucide-react'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
-import {INSTITUTE_NAME} from '@shared/config/institute'
+import {INSTITUTE_NAME, INSTITUTE_TAG} from '@shared/config/institute'
+import logo from '@/images/logo.png'
 
 const MONTHS = [
     {value: 1, label: 'January'},
@@ -83,80 +84,174 @@ export default function MorningFees() {
 
     const printChallan = (challan) => {
         const printWindow = window.open('', '_blank')
-        const bankDetailsHtml = paymentInfo.length > 0
+
+        const admissionFeeTotal = (challan.expenses || [])
+            .filter(e => e.type === 'ADMISSION_FEE')
+            .reduce((s, e) => s + Number(e.amount), 0)
+        const miscFeeTotal = (challan.expenses || [])
+            .filter(e => e.type !== 'ADMISSION_FEE')
+            .reduce((s, e) => s + Number(e.amount), 0)
+        const balance = Number(challan.totalAmount) - Number(challan.paidAmount)
+
+        const fmt = (n) => 'Rs. ' + Number(n || 0).toLocaleString('en-PK')
+        const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', {day: '2-digit', month: 'short', year: 'numeric'}) : '—'
+
+        const statusColors = {
+            PAID: {text: '#16a34a', bg: '#ecfdf5'},
+            UNPAID: {text: '#dc2626', bg: '#fff1f2'},
+            OVERDUE: {text: '#dc2626', bg: '#fff1f2'},
+            PARTIAL: {text: '#ea580c', bg: '#fffbeb'},
+        }
+        const sc = statusColors[challan.status] || {text: '#475569', bg: '#f1f5f9'}
+
+        const bankRowsHtml = paymentInfo.length > 0
             ? paymentInfo.map(p => `
-              <p><strong>Account Title:</strong> ${p.accountTitle}</p>
-              <p><strong>Account Number:</strong> ${p.accountNumber}</p>
-              <p><strong>Bank Name:</strong> ${p.bankName}</p>
-              ${p.notes ? `<p><em>${p.notes}</em></p>` : ''}
-            `).join('<hr style="border: none; border-top: 1px dashed #fde68a; margin: 12px 0;">')
-            : '<p>Contact the administration for payment details.</p>'
+              <div class="bank-row"><span class="bank-label">Account Title</span><span class="bank-value">${p.accountTitle}</span></div>
+              <div class="bank-row"><span class="bank-label">Account No.</span><span class="bank-value">${p.accountNumber}</span></div>
+              <div class="bank-row"><span class="bank-label">Bank</span><span class="bank-value">${p.bankName}</span></div>
+              ${p.notes ? `<div class="bank-row"><span class="bank-label"></span><span class="bank-value" style="font-style:italic;">${p.notes}</span></div>` : ''}
+            `).join('<div class="bank-divider"></div>')
+            : '<p style="font-size:12px;color:#64748b;margin:0;">Contact the administration for payment details.</p>'
+
+        const feeRow = (label, amount, highlight) => `
+            <tr${highlight ? ' style="background:#f1f5f9;"' : ''}>
+              <td>${label}</td>
+              <td style="text-align:right;">${fmt(amount)}</td>
+            </tr>`
+
         const content = `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
+        <meta charset="UTF-8"/>
         <title>Fee Challan - ${challan.challanNumber}</title>
         <style>
-          body { font-family: 'Segoe UI', system-ui, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #1a1a2e; }
-          .header { text-align: center; border-bottom: 3px solid #1a3a6b; padding-bottom: 20px; margin-bottom: 30px; }
-          .header h1 { color: #1a3a6b; margin: 0; font-size: 28px; }
-          .header p { margin: 5px 0 0; color: #666; font-size: 15px; }
-          .challan-info { display: flex; justify-content: space-between; margin-bottom: 24px; }
-          .student-info { background: #f8f9fb; padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid #e8ecf2; }
-          .fee-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 24px; border-radius: 12px; overflow: hidden; border: 1px solid #e8ecf2; }
-          .fee-table th, .fee-table td { padding: 12px 16px; text-align: left; }
-          .fee-table th { background: #f8f9fb; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; }
-          .fee-table td { border-top: 1px solid #e8ecf2; }
-          .total-row { font-weight: 700; background: #eef2ff; }
-          .bank-details { background: #fffbeb; padding: 20px; border-radius: 12px; margin-top: 24px; border: 1px solid #fde68a; }
-          .bank-details h3 { margin-top: 0; color: #92400e; }
-          .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; }
+          * { box-sizing: border-box; }
+          body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background: #fff; color: #1e293b; }
+          @page { size: A4; margin: 0; }
           @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+          .page { max-width: 700px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+
+          .banner { background: #1a2744; padding: 24px 32px; display: flex; align-items: center; justify-content: space-between; }
+          .banner-left { display: flex; align-items: center; gap: 14px; }
+          .banner-left img { height: 44px; width: 44px; object-fit: contain; border-radius: 50%; background: #fff; padding: 4px; }
+          .banner-school { color: #fff; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+          .banner-tag { color: #c9952b; font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; margin-top: 2px; }
+          .banner-right { text-align: right; }
+          .pill { display: inline-block; background: rgba(255,255,255,0.12); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 5px 14px; border-radius: 20px; text-transform: uppercase; }
+
+          .meta-row { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+          .meta-item { font-size: 12px; color: #475569; }
+          .meta-item strong { color: #1a2744; font-weight: 700; }
+          .status-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 20px; color: ${sc.text}; background: ${sc.bg}; border: 1px solid ${sc.text}33; text-transform: uppercase; letter-spacing: 0.5px; }
+
+          .date-row { display: flex; gap: 32px; padding: 12px 32px; font-size: 11.5px; color: #64748b; border-bottom: 1px solid #f1f5f9; }
+
+          .section-header { background: #f1f5f9; padding: 8px 32px; font-size: 10.5px; font-weight: 700; letter-spacing: 1px; color: #475569; text-transform: uppercase; }
+          .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 24px; padding: 16px 32px 20px; }
+          .info-field label { display: block; font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }
+          .info-field span { font-size: 13.5px; font-weight: 700; color: #1a2744; }
+
+          .fee-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 20px; }
+          .fee-table thead th { background: #1a2744; color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 9px 32px; text-align: left; }
+          .fee-table thead th:last-child { text-align: right; }
+          .fee-table tbody td { padding: 9px 32px; border-top: 1px solid #f1f5f9; color: #334155; }
+
+          .total-bar { display: flex; justify-content: space-between; align-items: center; background: #1a2744; color: #fff; margin: 0 32px 14px; padding: 12px 16px; border-radius: 6px; }
+          .total-bar .label { font-weight: 700; font-size: 13px; }
+          .total-bar .value { font-weight: 800; font-size: 15px; color: #c9952b; }
+
+          .paid-balance { padding: 0 32px 20px; }
+          .pb-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 4px 0; color: #475569; }
+          .pb-row .amt-paid { color: #16a34a; font-weight: 700; }
+          .pb-row .amt-balance { font-weight: 700; }
+
+          .bank-box { margin: 0 32px 20px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px 18px; }
+          .bank-box h4 { margin: 0 0 8px; font-size: 10.5px; font-weight: 700; color: #92400e; letter-spacing: 0.8px; text-transform: uppercase; }
+          .bank-row { display: flex; gap: 10px; font-size: 12px; padding: 2px 0; }
+          .bank-label { color: #92400e; opacity: 0.75; min-width: 90px; }
+          .bank-value { color: #78350f; font-weight: 700; }
+          .bank-divider { border-top: 1px dashed #fde68a; margin: 8px 0; }
+
+          .remarks { padding: 0 32px 16px; font-size: 11px; color: #94a3b8; }
+          .signature { display: flex; justify-content: flex-end; padding: 0 32px 24px; }
+          .signature-line { border-top: 1px solid #cbd5e1; width: 180px; text-align: center; padding-top: 6px; font-size: 10.5px; color: #94a3b8; }
+
+          .footer { text-align: center; font-size: 10px; color: #94a3b8; padding: 14px 32px 22px; border-top: 1px solid #f1f5f9; }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>${INSTITUTE_NAME}</h1>
-          <p>Morning Batch - Fee Challan</p>
-        </div>
-        <div class="challan-info">
-          <div>
-            <strong>Challan No:</strong> ${challan.challanNumber}<br>
-            <strong>Issue Date:</strong> ${new Date(challan.issueDate).toLocaleDateString()}<br>
-            <strong>Due Date:</strong> ${new Date(challan.dueDate).toLocaleDateString()}
+        <div class="page">
+          <div class="banner">
+            <div class="banner-left">
+              <img src="${logo}" alt="Logo"/>
+              <div>
+                <div class="banner-school">${INSTITUTE_NAME}</div>
+                <div class="banner-tag">${INSTITUTE_TAG}</div>
+              </div>
+            </div>
+            <div class="banner-right">
+              <span class="pill">Fee Challan</span>
+            </div>
           </div>
-          <div style="text-align: right;">
-            <strong>Month:</strong> ${getMonthName(challan.month)} ${challan.year}<br>
-            <strong>Status:</strong> ${challan.status}
+
+          <div class="meta-row">
+            <div class="meta-item">Challan No. <strong>${challan.challanNumber}</strong></div>
+            <span class="status-badge">${challan.status}</span>
           </div>
-        </div>
-        <div class="student-info">
-          <strong>Student Name:</strong> ${challan.student?.name}<br>
-          <strong>Roll Number:</strong> ${challan.student?.rollNumber}<br>
-          <strong>Class:</strong> ${challan.student?.class?.name || challan.student?.enrollments?.[0]?.class?.name || 'N/A'}<br>
-          <strong>Father's Name:</strong> ${challan.student?.fatherName}
-        </div>
-        <table class="fee-table">
-          <thead><tr><th>Description</th><th style="text-align: right;">Amount (Rs.)</th></tr></thead>
-          <tbody>
-            <tr><td>Monthly Tuition Fee</td><td style="text-align: right;">${Number(challan.monthlyFee).toLocaleString()}</td></tr>
-            ${Number(challan.arrears) > 0 ? `<tr><td>Previous Arrears</td><td style="text-align: right;">${Number(challan.arrears).toLocaleString()}</td></tr>` : ''}
-            ${Number(challan.lateFee) > 0 ? `<tr><td>Late Fee</td><td style="text-align: right;">${Number(challan.lateFee).toLocaleString()}</td></tr>` : ''}
-            ${Number(challan.discount) > 0 ? `<tr><td>Discount</td><td style="text-align: right;">-${Number(challan.discount).toLocaleString()}</td></tr>` : ''}
-            <tr class="total-row"><td>Total Payable</td><td style="text-align: right;">${Number(challan.totalAmount).toLocaleString()}</td></tr>
-            ${Number(challan.paidAmount) > 0 ? `
-            <tr><td>Amount Paid</td><td style="text-align: right;">${Number(challan.paidAmount).toLocaleString()}</td></tr>
-            <tr class="total-row"><td>Balance Due</td><td style="text-align: right;">${(Number(challan.totalAmount) - Number(challan.paidAmount)).toLocaleString()}</td></tr>` : ''}
-          </tbody>
-        </table>
-        <div class="bank-details">
-          <h3>Online Payment Details</h3>
-          ${bankDetailsHtml}
-          <p style="margin-bottom: 0;"><em>Please mention challan number in payment reference</em></p>
-        </div>
-        <div class="footer">
-          <p>For queries, contact the administration office</p>
-          <p>Late fee of Rs. 500 will be charged after due date</p>
+          <div class="date-row">
+            <span>Month: <strong>${getMonthName(challan.month)} ${challan.year}</strong></span>
+            <span>Due: <strong>${fmtDate(challan.dueDate)}</strong></span>
+            <span>Issued: <strong>${fmtDate(challan.issueDate)}</strong></span>
+            ${challan.paidDate ? `<span>Paid: <strong>${fmtDate(challan.paidDate)}</strong></span>` : ''}
+          </div>
+
+          <div class="section-header">Student Information</div>
+          <div class="info-grid">
+            <div class="info-field"><label>Student Name</label><span>${challan.student?.name || '—'}</span></div>
+            <div class="info-field"><label>Father Name</label><span>${challan.student?.fatherName || '—'}</span></div>
+            <div class="info-field"><label>Roll Number</label><span>${challan.student?.rollNumber || '—'}</span></div>
+            <div class="info-field"><label>Class</label><span>${challan.student?.class?.name || '—'}</span></div>
+          </div>
+
+          <div class="section-header">Fee Breakdown</div>
+          <table class="fee-table">
+            <thead><tr><th>Description</th><th>Amount</th></tr></thead>
+            <tbody>
+              ${feeRow('Monthly Tuition Fee', challan.monthlyFee, false)}
+              ${admissionFeeTotal > 0 ? feeRow('Admission Fee', admissionFeeTotal, true) : ''}
+              ${miscFeeTotal > 0 ? feeRow('Misc. Fee', miscFeeTotal, false) : ''}
+              ${Number(challan.arrears) > 0 ? feeRow('Previous Arrears', challan.arrears, true) : ''}
+              ${Number(challan.lateFee) > 0 ? feeRow('Late Fee', challan.lateFee, false) : ''}
+              ${Number(challan.discount) > 0 ? feeRow('Discount', -challan.discount, true) : ''}
+            </tbody>
+          </table>
+
+          <div class="total-bar">
+            <span class="label">Total Payable</span>
+            <span class="value">${fmt(challan.totalAmount)}</span>
+          </div>
+
+          <div class="paid-balance">
+            <div class="pb-row"><span>Amount Paid</span><span class="amt-paid">${fmt(challan.paidAmount)}</span></div>
+            <div class="pb-row"><span>Balance Due</span><span class="amt-balance" style="color:${balance > 0 ? '#dc2626' : '#16a34a'};">${fmt(balance)}</span></div>
+          </div>
+
+          <div class="bank-box">
+            <h4>Bank Payment Details</h4>
+            ${bankRowsHtml}
+            <p style="margin:8px 0 0;font-size:11px;color:#92400e;font-style:italic;">Please mention challan number in payment reference</p>
+          </div>
+
+          <div class="remarks">Remarks: ${challan.remarks || '—'}</div>
+
+          <div class="signature">
+            <div class="signature-line">Authorized Signature</div>
+          </div>
+
+          <div class="footer">
+            This is a computer-generated document. Late fee of Rs. 500 applies after due date.
+          </div>
         </div>
         <script>window.print();</script>
       </body>
