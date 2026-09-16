@@ -23,8 +23,8 @@ const studentLinks = [
     {href: '/', label: 'Dashboard', icon: LayoutDashboard},
     {href: '/timetable', label: 'Timetable', icon: Clock},
     {href: '/fees', label: 'Fee Challans', icon: DollarSign},
-    // {href: '/marks', label: 'My Marks', icon: Award},
-    // {href: '/reports', label: 'Reports', icon: FileText},
+    {href: '/marks', label: 'My Marks', icon: Award},
+    {href: '/reports', label: 'Reports', icon: FileText},
     {href: '/profile', label: 'My Profile', icon: User},
 ]
 
