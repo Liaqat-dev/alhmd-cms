@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table'
-import {morningFeesAPI, paymentInfoAPI} from '@/services/api'
+import {feesAPI, paymentInfoAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {AlertCircle, Building2, CheckCircle, Clock, CreditCard, Download, Printer, Receipt, Wallet,} from 'lucide-react'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
@@ -24,7 +24,7 @@ const MONTHS = [
     {value: 12, label: 'December'},
 ]
 
-export default function MorningFees() {
+export default function Fees() {
     const [challans, setChallans] = useState([])
     const [arrears, setArrears] = useState(0)
     const [loading, setLoading] = useState(true)
@@ -38,7 +38,7 @@ export default function MorningFees() {
 
     const fetchChallans = async () => {
         try {
-            const res = await morningFeesAPI.getMyChallans()
+            const res = await feesAPI.getMyChallans()
             setChallans(res.data.challans)
             setArrears(res.data.arrears || 0)
         } catch (error) {
@@ -263,7 +263,7 @@ export default function MorningFees() {
 
     const handleDownloadPDF = async (challan) => {
         try {
-            const res = await morningFeesAPI.downloadPDF(challan.id)
+            const res = await feesAPI.downloadPDF(challan.id)
             const blob = new Blob([res.data], {type: 'application/pdf'})
             const url = window.URL.createObjectURL(blob)
             const link = document.createElement('a')

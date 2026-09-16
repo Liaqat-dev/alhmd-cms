@@ -18,21 +18,21 @@ const calculateGrade = (obtained, total) => {
 // Normalizes an exam row to the shape the UI expects:
 //   name  ← title
 //   examDate ← scheduledDate
-//   classId  ← morningClassId
-//   class    ← morningClass
+//   classId  ← classId
+//   class    ← class
 function mapExam(e) {
-  const { morningClass, ...rest } = e;
+  const { class: cls, ...rest } = e;
   return {
     ...rest,
     name: e.title,
     examDate: e.scheduledDate,
-    classId: e.morningClassId,
-    class: morningClass || null,
+    classId: e.classId,
+    class: cls || null,
   };
 }
 
-const morningExamInclude = {
-  morningClass: { select: { id: true, name: true } },
+const examInclude = {
+  class: { select: { id: true, name: true } },
   subject: { select: { id: true, name: true } },
   _count: { select: { marks: true } }
 };
@@ -44,13 +44,13 @@ const getAllExams = catchAsync(async (req, res) => {
   const { classId, subjectId, examType } = req.query;
 
   const where = {};
-  if (classId) where.morningClassId = classId;
+  if (classId) where.classId = classId;
   if (subjectId) where.subjectId = subjectId;
   if (examType) where.examType = examType;
 
-  const rows = await prisma.morningExam.findMany({
+  const rows = await prisma.exam.findMany({
     where,
-    include: morningExamInclude,
+    include: examInclude,
     orderBy: { scheduledDate: 'desc' }
   });
   const exams = rows.map(mapExam);
@@ -62,10 +62,10 @@ const getAllExams = catchAsync(async (req, res) => {
 const getExamById = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  const row = await prisma.morningExam.findUnique({
+  const row = await prisma.exam.findUnique({
     where: { id },
     include: {
-      morningClass: true,
+      class: true,
       subject: true,
       marks: {
         include: { student: { select: { id: true, name: true, rollNumber: true } } },
@@ -90,7 +90,7 @@ const createExam = catchAsync(async (req, res) => {
   const isAllSubjects = subjectId === 'ALL';
 
   // Validate class exists
-  const cls = await prisma.morningClass.findUnique({ where: { id: classId } });
+  const cls = await prisma.class.findUnique({ where: { id: classId } });
   if (!cls) throw new AppError(400, { classId: 'Class not found' });
 
   const baseData = {
@@ -104,7 +104,7 @@ const createExam = catchAsync(async (req, res) => {
 
   if (isAllSubjects) {
     // Create one exam per subject
-    const subjects = await prisma.morningSubject.findMany({ where: { classes: { some: { id: classId } } } });
+    const subjects = await prisma.subject.findMany({ where: { classes: { some: { id: classId } } } });
 
     if (subjects.length === 0) {
       throw new AppError(400, { message: 'This class has no subjects.' });
@@ -112,9 +112,9 @@ const createExam = catchAsync(async (req, res) => {
 
     const createdExams = [];
     for (const subject of subjects) {
-      const row = await prisma.morningExam.create({
-        data: { ...baseData, morningClassId: classId, subjectId: subject.id },
-        include: morningExamInclude
+      const row = await prisma.exam.create({
+        data: { ...baseData, classId: classId, subjectId: subject.id },
+        include: examInclude
       });
       createdExams.push(mapExam(row));
     }
@@ -126,12 +126,12 @@ const createExam = catchAsync(async (req, res) => {
   }
 
   // Single subject exam
-  const sub = await prisma.morningSubject.findUnique({ where: { id: subjectId } });
+  const sub = await prisma.subject.findUnique({ where: { id: subjectId } });
   if (!sub) throw new AppError(400, { subjectId: 'Subject not found' });
 
-  const row = await prisma.morningExam.create({
-    data: { ...baseData, morningClassId: classId, subjectId },
-    include: morningExamInclude
+  const row = await prisma.exam.create({
+    data: { ...baseData, classId: classId, subjectId },
+    include: examInclude
   });
   const exam = mapExam(row);
 
@@ -143,7 +143,7 @@ const updateExam = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { name, examType, totalMarks, passingMarks, examDate } = req.body;
 
-  const existing = await prisma.morningExam.findUnique({ where: { id } });
+  const existing = await prisma.exam.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Exam not found');
 
   const data = {
@@ -154,7 +154,7 @@ const updateExam = catchAsync(async (req, res) => {
     ...(examDate && { scheduledDate: new Date(examDate) })
   };
 
-  const row = await prisma.morningExam.update({ where: { id }, data, include: morningExamInclude });
+  const row = await prisma.exam.update({ where: { id }, data, include: examInclude });
   const exam = mapExam(row);
 
   res.json({ message: 'Exam updated successfully', exam });
@@ -164,10 +164,10 @@ const updateExam = catchAsync(async (req, res) => {
 const deleteExam = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  const existing = await prisma.morningExam.findUnique({ where: { id } });
+  const existing = await prisma.exam.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Exam not found');
 
-  await prisma.morningExam.delete({ where: { id } });
+  await prisma.exam.delete({ where: { id } });
 
   res.json({ message: 'Exam deleted successfully' });
 });
@@ -179,7 +179,7 @@ const enterMarks = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'Exam ID and marks array are required' });
   }
 
-  const exam = await prisma.morningExam.findUnique({ where: { id: examId } });
+  const exam = await prisma.exam.findUnique({ where: { id: examId } });
   if (!exam) throw new AppError(404, 'Exam not found');
 
   const results = { created: 0, updated: 0, errors: [] };
@@ -192,18 +192,18 @@ const enterMarks = catchAsync(async (req, res) => {
         continue;
       }
       const grade = calculateGrade(obtainedMarks, exam.totalMarks);
-      const existing = await prisma.morningMark.findUnique({
+      const existing = await prisma.mark.findUnique({
         where: { examId_studentId: { examId, studentId } }
       });
 
       if (existing) {
-        await prisma.morningMark.update({
+        await prisma.mark.update({
           where: { id: existing.id },
           data: { obtainedMarks: parseFloat(obtainedMarks), grade, remarks, gradedBy: req.user.id }
         });
         results.updated++;
       } else {
-        await prisma.morningMark.create({
+        await prisma.mark.create({
           data: { examId, studentId, obtainedMarks: parseFloat(obtainedMarks), grade, remarks, gradedBy: req.user.id }
         });
         results.created++;
@@ -227,12 +227,12 @@ const getStudentMarks = catchAsync(async (req, res) => {
   if (subjectId) examWhere.subjectId = subjectId;
   if (examType) examWhere.examType = examType;
 
-  let marks = await prisma.morningMark.findMany({
+  let marks = await prisma.mark.findMany({
     where: { studentId, exam: examWhere },
     include: {
       exam: {
         include: {
-          morningClass: { select: { id: true, name: true } },
+          class: { select: { id: true, name: true } },
           subject: { select: { id: true, name: true } }
         }
       }
@@ -260,10 +260,10 @@ const getStudentMarks = catchAsync(async (req, res) => {
 const getClassMarks = catchAsync(async (req, res) => {
   const { examId } = req.params;
 
-  const examRow = await prisma.morningExam.findUnique({
+  const examRow = await prisma.exam.findUnique({
     where: { id: examId },
     include: {
-      morningClass: { select: { id: true, name: true } },
+      class: { select: { id: true, name: true } },
       subject: { select: { id: true, name: true } }
     }
   });
@@ -271,14 +271,14 @@ const getClassMarks = catchAsync(async (req, res) => {
 
   const studentSelect = {
     id: true, name: true, rollNumber: true,
-    morningMarks: { where: { examId }, take: 1 }
+    marks: { where: { examId }, take: 1 }
   };
-  const enrollments = await prisma.morningEnrollment.findMany({
-    where: { morningClassId: examRow.morningClassId, isActive: true },
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: examRow.classId, isActive: true },
     include: { student: { select: studentSelect } },
     orderBy: { student: { name: 'asc' } }
   });
-  const students = enrollments.map(e => ({ ...e.student, marks: e.student.morningMarks }));
+  const students = enrollments.map(e => ({ ...e.student, marks: e.student.marks }));
 
   const exam = mapExam(examRow);
   const markedStudents = students.filter(s => s.marks.length > 0);
@@ -312,7 +312,7 @@ const getSubjectWiseMarks = catchAsync(async (req, res) => {
   const studentId = req.user.student?.id || req.params.studentId;
   if (!studentId) throw new AppError(400, { message: 'Student ID required' });
 
-  const marks = await prisma.morningMark.findMany({
+  const marks = await prisma.mark.findMany({
     where: { studentId },
     include: { exam: { include: { subject: { select: { id: true, name: true } } } } }
   });
@@ -352,15 +352,15 @@ const getTeacherExams = catchAsync(async (req, res) => {
   const teacherId = req.user.teacher?.id;
   if (!teacherId) throw new AppError(400, { message: 'Teacher not found' });
 
-  const subjectTeachers = await prisma.morningSubjectTeacher.findMany({
+  const subjectTeachers = await prisma.subjectTeacher.findMany({
     where: { teacherId },
     include: { subject: { select: { classes: { select: { id: true } } } } }
   });
   const classIds = [...new Set(subjectTeachers.flatMap(st => st.subject.classes.map(c => c.id)))];
 
-  const rows = await prisma.morningExam.findMany({
-    where: { morningClassId: { in: classIds } },
-    include: morningExamInclude,
+  const rows = await prisma.exam.findMany({
+    where: { classId: { in: classIds } },
+    include: examInclude,
     orderBy: { scheduledDate: 'desc' }
   });
   const exams = rows.map(mapExam);

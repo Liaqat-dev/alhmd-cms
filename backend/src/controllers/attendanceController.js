@@ -19,12 +19,12 @@ const markAttendance = catchAsync(async (req, res) => {
   const attendanceDate = new Date(date);
   attendanceDate.setHours(0, 0, 0, 0);
 
-  const cls = await prisma.morningClass.findUnique({ where: { id: classId }, select: { id: true } });
+  const cls = await prisma.class.findUnique({ where: { id: classId }, select: { id: true } });
   if (!cls) throw new AppError(400, { classId: 'Class not found' });
 
   // Non-admin teachers may only mark classes they actually teach a subject in
   if (!isAdmin) {
-    const teacherHasClass = await prisma.morningSubjectTeacher.findFirst({
+    const teacherHasClass = await prisma.subjectTeacher.findFirst({
       where: { teacherId, subject: { classes: { some: { id: classId } } } }
     });
     if (!teacherHasClass) {
@@ -39,8 +39,8 @@ const markAttendance = catchAsync(async (req, res) => {
     if (!studentId || !status) continue;
 
     // Validate student is actively enrolled in this class
-    const enrolled = await prisma.morningEnrollment.findFirst({
-      where: { studentId, morningClassId: classId, isActive: true }
+    const enrolled = await prisma.enrollment.findFirst({
+      where: { studentId, classId: classId, isActive: true }
     });
     if (!enrolled) {
       console.error(`Student ${studentId} is not actively enrolled in class ${classId}`);
@@ -48,11 +48,11 @@ const markAttendance = catchAsync(async (req, res) => {
     }
 
     try {
-      const attendance = await prisma.morningAttendance.upsert({
+      const attendance = await prisma.attendance.upsert({
         where: {
-          studentId_morningClassId_date: {
+          studentId_classId_date: {
             studentId,
-            morningClassId: classId,
+            classId: classId,
             date: attendanceDate
           }
         },
@@ -62,11 +62,11 @@ const markAttendance = catchAsync(async (req, res) => {
           teacherId,
           date: attendanceDate,
           status,
-          morningClassId: classId
+          classId: classId
         },
         include: {
           student: { select: { id: true, name: true } },
-          morningClass: { select: { id: true, name: true } }
+          class: { select: { id: true, name: true } }
         }
       });
       results.push(attendance);
@@ -87,15 +87,15 @@ const getAttendanceByClass = catchAsync(async (req, res) => {
   const attendanceDate = date ? new Date(date) : new Date();
   attendanceDate.setHours(0, 0, 0, 0);
 
-  const enrollments = await prisma.morningEnrollment.findMany({
-    where: { morningClassId: classId, isActive: true },
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: classId, isActive: true },
     include: { student: { select: { id: true, name: true, rollNumber: true } } },
     orderBy: { student: { name: 'asc' } }
   });
 
   const studentIds = enrollments.map(e => e.studentId);
-  const attendanceRecords = await prisma.morningAttendance.findMany({
-    where: { studentId: { in: studentIds }, morningClassId: classId, date: attendanceDate }
+  const attendanceRecords = await prisma.attendance.findMany({
+    where: { studentId: { in: studentIds }, classId: classId, date: attendanceDate }
   });
 
   const attendanceMap = new Map(attendanceRecords.map(a => [a.studentId, a.status]));
@@ -131,9 +131,9 @@ const getStudentAttendance = catchAsync(async (req, res) => {
     };
   }
 
-  const attendances = await prisma.morningAttendance.findMany({
+  const attendances = await prisma.attendance.findMany({
     where: { studentId, date: dateFilter },
-    include: { teacher: { select: { name: true } }, morningClass: { select: { id: true, name: true } } },
+    include: { teacher: { select: { name: true } }, class: { select: { id: true, name: true } } },
     orderBy: { date: 'desc' }
   });
 
@@ -156,16 +156,16 @@ const getClassAttendanceReport = catchAsync(async (req, res) => {
   const startDate = new Date(yearNum, monthNum - 1, 1);
   const endDate = new Date(yearNum, monthNum, 0);
 
-  const enrollments = await prisma.morningEnrollment.findMany({
-    where: { morningClassId: classId, isActive: true },
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: classId, isActive: true },
     include: { student: { select: { id: true, name: true, rollNumber: true } } },
     orderBy: { student: { name: 'asc' } }
   });
   const enrolledStudents = enrollments.map(e => ({ student: e.student }));
 
   const studentIds = enrolledStudents.map(e => e.student.id);
-  const allAttendances = await prisma.morningAttendance.findMany({
-    where: { studentId: { in: studentIds }, morningClassId: classId, date: { gte: startDate, lte: endDate } }
+  const allAttendances = await prisma.attendance.findMany({
+    where: { studentId: { in: studentIds }, classId: classId, date: { gte: startDate, lte: endDate } }
   });
 
   const byStudent = new Map();
@@ -203,16 +203,16 @@ const getClassAttendanceGrid = catchAsync(async (req, res) => {
   const endDate = new Date(yearNum, monthNum, 0);
   endDate.setHours(23, 59, 59, 999);
 
-  const enrollments = await prisma.morningEnrollment.findMany({
-    where: { morningClassId: classId, isActive: true },
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: classId, isActive: true },
     include: { student: { select: { id: true, name: true, rollNumber: true } } },
     orderBy: { student: { name: 'asc' } }
   });
   const enrolledStudents = enrollments.map(e => ({ student: e.student }));
 
   const studentIds = enrolledStudents.map(e => e.student.id);
-  const allAttendances = await prisma.morningAttendance.findMany({
-    where: { studentId: { in: studentIds }, morningClassId: classId, date: { gte: startDate, lte: endDate } },
+  const allAttendances = await prisma.attendance.findMany({
+    where: { studentId: { in: studentIds }, classId: classId, date: { gte: startDate, lte: endDate } },
     orderBy: { date: 'asc' }
   });
 
@@ -265,7 +265,7 @@ const getMyAttendance = catchAsync(async (req, res) => {
   const monthNum = parseInt(month) || new Date().getMonth() + 1;
   const yearNum = parseInt(year) || new Date().getFullYear();
 
-  const attendances = await prisma.morningAttendance.findMany({
+  const attendances = await prisma.attendance.findMany({
     where: {
       studentId,
       date: {
@@ -273,7 +273,7 @@ const getMyAttendance = catchAsync(async (req, res) => {
         lte: new Date(yearNum, monthNum, 0)
       }
     },
-    include: { morningClass: { select: { id: true, name: true } } },
+    include: { class: { select: { id: true, name: true } } },
     orderBy: { date: 'desc' }
   });
 
@@ -306,7 +306,7 @@ const markTeacherAttendance = catchAsync(async (req, res) => {
     if (!teacherId || !status) continue;
 
     try {
-      const attendance = await prisma.morningTeacherAttendance.upsert({
+      const attendance = await prisma.teacherAttendance.upsert({
         where: { teacherId_date: { teacherId, date: attendanceDate } },
         update: { status, markedBy: req.user.id },
         create: { teacherId, date: attendanceDate, status, markedBy: req.user.id },
@@ -333,7 +333,7 @@ const getTeacherAttendanceByDate = catchAsync(async (req, res) => {
     orderBy: { name: 'asc' }
   });
 
-  const records = await prisma.morningTeacherAttendance.findMany({
+  const records = await prisma.teacherAttendance.findMany({
     where: { teacherId: { in: teachers.map(t => t.id) }, date: attendanceDate }
   });
   const statusMap = new Map(records.map(r => [r.teacherId, r.status]));
@@ -362,7 +362,7 @@ const getTeacherAttendanceReport = catchAsync(async (req, res) => {
     orderBy: { name: 'asc' }
   });
 
-  const allAttendances = await prisma.morningTeacherAttendance.findMany({
+  const allAttendances = await prisma.teacherAttendance.findMany({
     where: { teacherId: { in: teachers.map(t => t.id) }, date: { gte: startDate, lte: endDate } }
   });
 
@@ -405,7 +405,7 @@ const getTeacherAttendanceGrid = catchAsync(async (req, res) => {
     orderBy: { name: 'asc' }
   });
 
-  const allAttendances = await prisma.morningTeacherAttendance.findMany({
+  const allAttendances = await prisma.teacherAttendance.findMany({
     where: { teacherId: { in: teachers.map(t => t.id) }, date: { gte: startDate, lte: endDate } },
     orderBy: { date: 'asc' }
   });

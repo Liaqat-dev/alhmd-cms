@@ -29,33 +29,33 @@ function groupByDay(entries) {
 async function checkTeacherClash(teacherId, dayOfWeek, startTime, endTime, excludeId = null) {
   const overlap = timeOverlapCondition(startTime, endTime);
 
-  const conflict = await prisma.morningTimetable.findFirst({
+  const conflict = await prisma.timetable.findFirst({
     where: {
       teacherId,
       dayOfWeek,
       ...(excludeId && { id: { not: excludeId } }),
       ...overlap
     },
-    include: { morningClass: { select: { name: true } } }
+    include: { class: { select: { name: true } } }
   });
 
   if (conflict) {
-    return `Teacher is already scheduled in ${conflict.morningClass.name} on ${dayOfWeek} from ${conflict.startTime} to ${conflict.endTime}`;
+    return `Teacher is already scheduled in ${conflict.class.name} on ${dayOfWeek} from ${conflict.startTime} to ${conflict.endTime}`;
   }
   return null;
 }
 
 // Common include for timetable entry details
-const morningEntryInclude = {
+const entryInclude = {
   subject: { select: { id: true, name: true } },
   teacher: { select: { id: true, name: true } },
-  morningClass: { select: { id: true, name: true } }
+  class: { select: { id: true, name: true } }
 };
 
-// Normalizes a morning entry so UI gets consistent `class` field
-function mapMorningEntry(e) {
-  const { morningClass, ...rest } = e;
-  return { ...rest, class: morningClass, classId: e.morningClassId };
+// Normalizes an entry so UI gets consistent `class` field
+function mapEntry(e) {
+  const { class: cls, ...rest } = e;
+  return { ...rest, class: cls, classId: e.classId };
 }
 
 // ── Controllers ───────────────────────────────────────────────────────────────
@@ -64,12 +64,12 @@ function mapMorningEntry(e) {
 const getTimetableByClass = catchAsync(async (req, res) => {
   const { classId } = req.params;
 
-  const rows = await prisma.morningTimetable.findMany({
-    where: { morningClassId: classId },
-    include: morningEntryInclude,
+  const rows = await prisma.timetable.findMany({
+    where: { classId: classId },
+    include: entryInclude,
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
-  const entries = rows.map(mapMorningEntry);
+  const entries = rows.map(mapEntry);
 
   res.json({ timetable: groupByDay(entries), entries });
 });
@@ -79,12 +79,12 @@ const getTeacherTimetable = catchAsync(async (req, res) => {
   const teacherId = req.user.teacher?.id;
   if (!teacherId) throw new AppError(400, { message: 'Teacher profile not found' });
 
-  const rows = await prisma.morningTimetable.findMany({
+  const rows = await prisma.timetable.findMany({
     where: { teacherId },
-    include: morningEntryInclude,
+    include: entryInclude,
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
-  const entries = rows.map(mapMorningEntry);
+  const entries = rows.map(mapEntry);
 
   res.json({ timetable: groupByDay(entries), entries });
 });
@@ -93,12 +93,12 @@ const getTeacherTimetable = catchAsync(async (req, res) => {
 const getTimetableByTeacher = catchAsync(async (req, res) => {
   const { teacherId } = req.params;
 
-  const rows = await prisma.morningTimetable.findMany({
+  const rows = await prisma.timetable.findMany({
     where: { teacherId },
-    include: morningEntryInclude,
+    include: entryInclude,
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
-  const entries = rows.map(mapMorningEntry);
+  const entries = rows.map(mapEntry);
 
   res.json({ timetable: groupByDay(entries), entries });
 });
@@ -108,19 +108,19 @@ const getStudentTimetable = catchAsync(async (req, res) => {
   const studentId = req.user.student?.id;
   if (!studentId) throw new AppError(400, { message: 'Student profile not found' });
 
-  const mainEnrollment = await prisma.morningEnrollment.findUnique({
+  const mainEnrollment = await prisma.enrollment.findUnique({
     where: { studentId },
-    select: { morningClassId: true }
+    select: { classId: true }
   });
 
-  if (!mainEnrollment?.morningClassId) throw new AppError(400, { message: 'Student is not enrolled in any class' });
+  if (!mainEnrollment?.classId) throw new AppError(400, { message: 'Student is not enrolled in any class' });
 
-  const rows = await prisma.morningTimetable.findMany({
-    where: { morningClassId: mainEnrollment.morningClassId },
-    include: morningEntryInclude,
+  const rows = await prisma.timetable.findMany({
+    where: { classId: mainEnrollment.classId },
+    include: entryInclude,
     orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }]
   });
-  const entries = rows.map(mapMorningEntry);
+  const entries = rows.map(mapEntry);
 
   res.json({ timetable: groupByDay(entries), entries });
 });
@@ -136,8 +136,8 @@ const createTimetableEntry = catchAsync(async (req, res) => {
   const overlap = timeOverlapCondition(startTime, endTime);
 
   // 1. Check class time clash (same class, same day, overlapping time)
-  const classClash = await prisma.morningTimetable.findFirst({
-    where: { morningClassId: classId, dayOfWeek, ...overlap }
+  const classClash = await prisma.timetable.findFirst({
+    where: { classId: classId, dayOfWeek, ...overlap }
   });
   if (classClash) {
     throw new AppError(409, {
@@ -151,11 +151,11 @@ const createTimetableEntry = catchAsync(async (req, res) => {
     if (teacherClashMsg) throw new AppError(409, { message: teacherClashMsg });
   }
 
-  const row = await prisma.morningTimetable.create({
-    data: { morningClassId: classId, subjectId, teacherId: teacherId || null, dayOfWeek, startTime, endTime, room: room || null },
-    include: morningEntryInclude
+  const row = await prisma.timetable.create({
+    data: { classId: classId, subjectId, teacherId: teacherId || null, dayOfWeek, startTime, endTime, room: room || null },
+    include: entryInclude
   });
-  const entry = mapMorningEntry(row);
+  const entry = mapEntry(row);
 
   res.status(201).json({ message: 'Timetable entry created successfully', entry });
 });
@@ -165,7 +165,7 @@ const updateTimetableEntry = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { subjectId, teacherId, dayOfWeek, startTime, endTime, room } = req.body;
 
-  const existingEntry = await prisma.morningTimetable.findUnique({ where: { id } });
+  const existingEntry = await prisma.timetable.findUnique({ where: { id } });
   if (!existingEntry) throw new AppError(404, 'Timetable entry not found');
 
   const updatedDay = dayOfWeek || existingEntry.dayOfWeek;
@@ -176,8 +176,8 @@ const updateTimetableEntry = catchAsync(async (req, res) => {
   const overlap = timeOverlapCondition(updatedStart, updatedEnd);
 
   // 1. Check class time clash (excluding this entry)
-  const classClash = await prisma.morningTimetable.findFirst({
-    where: { morningClassId: existingEntry.morningClassId, dayOfWeek: updatedDay, id: { not: id }, ...overlap }
+  const classClash = await prisma.timetable.findFirst({
+    where: { classId: existingEntry.classId, dayOfWeek: updatedDay, id: { not: id }, ...overlap }
   });
   if (classClash) {
     throw new AppError(409, {
@@ -191,7 +191,7 @@ const updateTimetableEntry = catchAsync(async (req, res) => {
     if (teacherClashMsg) throw new AppError(409, { message: teacherClashMsg });
   }
 
-  const row = await prisma.morningTimetable.update({
+  const row = await prisma.timetable.update({
     where: { id },
     data: {
       ...(subjectId !== undefined && { subjectId }),
@@ -201,9 +201,9 @@ const updateTimetableEntry = catchAsync(async (req, res) => {
       ...(endTime !== undefined && { endTime }),
       ...(room !== undefined && { room: room || null })
     },
-    include: morningEntryInclude
+    include: entryInclude
   });
-  const entry = mapMorningEntry(row);
+  const entry = mapEntry(row);
 
   res.json({ message: 'Timetable entry updated successfully', entry });
 });
@@ -212,9 +212,9 @@ const updateTimetableEntry = catchAsync(async (req, res) => {
 const deleteTimetableEntry = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  const existing = await prisma.morningTimetable.findUnique({ where: { id } });
+  const existing = await prisma.timetable.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Timetable entry not found');
-  await prisma.morningTimetable.delete({ where: { id } });
+  await prisma.timetable.delete({ where: { id } });
 
   res.json({ message: 'Timetable entry deleted successfully' });
 });
@@ -223,7 +223,7 @@ const deleteTimetableEntry = catchAsync(async (req, res) => {
 const clearClassTimetable = catchAsync(async (req, res) => {
   const { classId } = req.params;
 
-  await prisma.morningTimetable.deleteMany({ where: { morningClassId: classId } });
+  await prisma.timetable.deleteMany({ where: { classId: classId } });
 
   res.json({ message: 'Timetable cleared successfully' });
 });

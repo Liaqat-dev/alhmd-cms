@@ -107,8 +107,8 @@ export default function AdminTeacherProfile() {
         })
     }
 
-    const morningAssignments = Object.values(assignmentMap)
-    const hasAssignments = morningAssignments.length > 0
+    const assignments = Object.values(assignmentMap)
+    const hasAssignments = assignments.length > 0
 
     const hasSalary = teacher.basicSalary != null || teacher.additionalPay != null
 
@@ -194,14 +194,14 @@ export default function AdminTeacherProfile() {
                 {hasAssignments && (
                     <Section title="Class Assignments">
                         <div className="space-y-3">
-                            {morningAssignments.length > 0 && (
+                            {assignments.length > 0 && (
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <Sun className="h-3.5 w-3.5 text-amber-500"/>
                                         <span className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Classes</span>
                                     </div>
                                     <div className="space-y-2">
-                                        {morningAssignments.map((a, i) => (
+                                        {assignments.map((a, i) => (
                                             <div key={i} className="rounded-lg border border-amber-200 dark:border-amber-400/25 overflow-hidden">
                                                 <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-400/8">
                                                     <Users className="h-3.5 w-3.5 text-amber-500"/>

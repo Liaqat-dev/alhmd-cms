@@ -34,7 +34,7 @@ const createExpense = catchAsync(async (req, res) => {
   if (!student) throw new AppError(404, 'Student not found');
 
   // If a challan for this month already exists, the expense can't be added to it.
-  const existingChallan = await prisma.morningChallan.findUnique({
+  const existingChallan = await prisma.challan.findUnique({
     where: { studentId_month_year: { studentId, month: parseInt(month), year: parseInt(year) } },
   });
   if (existingChallan) {
@@ -65,7 +65,7 @@ const updateExpense = catchAsync(async (req, res) => {
   const existing = await prisma.studentExpense.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Expense not found');
 
-  if (existing.morningChallanId) {
+  if (existing.challanId) {
     throw new AppError(400, { message: 'Cannot edit an expense that is already linked to a challan' });
   }
 
@@ -91,7 +91,7 @@ const deleteExpense = catchAsync(async (req, res) => {
   const existing = await prisma.studentExpense.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Expense not found');
 
-  if (existing.morningChallanId) {
+  if (existing.challanId) {
     throw new AppError(400, { message: 'Cannot delete an expense that is already linked to a challan' });
   }
 

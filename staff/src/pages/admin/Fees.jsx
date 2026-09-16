@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import MorningFees from './fees/MorningFees'
+import Fees from './fees/Fees'
 import PaymentHistory from './fees/PaymentHistory'
 import { CreditCard, ReceiptText } from 'lucide-react'
 
@@ -39,7 +39,7 @@ export default function AdminFees() {
         </div>
 
         <div>
-          {activeTab === 'fees' && <MorningFees />}
+          {activeTab === 'fees' && <Fees />}
           {activeTab === 'payment-history' && <PaymentHistory />}
         </div>
       </div>

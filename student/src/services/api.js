@@ -192,20 +192,20 @@ export const timetableAPI = {
   clearClass: (classId) => api.delete(`/timetable/class/${classId}/clear`),
 }
 
-// Morning Fee Challan API
-export const morningFeesAPI = {
-  getAll: (params) => api.get('/morning-fees', { params }),
-  getById: (id) => api.get(`/morning-fees/${id}`),
-  getStatistics: (params) => api.get('/morning-fees/statistics', { params }),
-  getPaymentHistory: (params) => api.get('/morning-fees/payment-history', { params }),
-  generate: (data) => api.post('/morning-fees/generate', data),
-  generateClass: (data) => api.post('/morning-fees/generate-class', data),
-  updatePayment: (id, data) => api.put(`/morning-fees/${id}/payment`, data),
-  updateOverdue: () => api.post('/morning-fees/update-overdue'),
-  delete: (id) => api.delete(`/morning-fees/${id}`),
-  getMyChallans: () => api.get('/morning-fees/my-challans'),
-  getStudentChallans: (studentId) => api.get(`/morning-fees/student/${studentId}`),
-  downloadPDF: (id) => api.get(`/morning-fees/${id}/pdf`, { responseType: 'blob' }),
+// Fee Challan API
+export const feesAPI = {
+  getAll: (params) => api.get('/fees', { params }),
+  getById: (id) => api.get(`/fees/${id}`),
+  getStatistics: (params) => api.get('/fees/statistics', { params }),
+  getPaymentHistory: (params) => api.get('/fees/payment-history', { params }),
+  generate: (data) => api.post('/fees/generate', data),
+  generateClass: (data) => api.post('/fees/generate-class', data),
+  updatePayment: (id, data) => api.put(`/fees/${id}/payment`, data),
+  updateOverdue: () => api.post('/fees/update-overdue'),
+  delete: (id) => api.delete(`/fees/${id}`),
+  getMyChallans: () => api.get('/fees/my-challans'),
+  getStudentChallans: (studentId) => api.get(`/fees/student/${studentId}`),
+  downloadPDF: (id) => api.get(`/fees/${id}/pdf`, { responseType: 'blob' }),
 }
 
 // Payment Info API
@@ -240,17 +240,17 @@ export const marksAPI = {
   getStudentSubjectMarks: (studentId) => api.get(`/marks/student/${studentId}/subjects`),
 }
 
-// Morning Salaries API
-export const morningSalariesAPI = {
-  getAll: (params) => api.get('/morning-salaries', { params }),
-  getById: (id) => api.get(`/morning-salaries/${id}`),
-  getStatistics: (params) => api.get('/morning-salaries/statistics', { params }),
-  calculate: (teacherId) => api.get(`/morning-salaries/calculate/${teacherId}`),
-  generateAll: (data) => api.post('/morning-salaries/generate', data),
-  generateSingle: (teacherId, data) => api.post(`/morning-salaries/generate/${teacherId}`, data),
-  getTeacherHistory: (teacherId) => api.get(`/morning-salaries/teacher/${teacherId}`),
-  updateStatus: (id, data) => api.put(`/morning-salaries/${id}/status`, data),
-  delete: (id) => api.delete(`/morning-salaries/${id}`),
+// Salaries API
+export const salariesAPI = {
+  getAll: (params) => api.get('/salaries', { params }),
+  getById: (id) => api.get(`/salaries/${id}`),
+  getStatistics: (params) => api.get('/salaries/statistics', { params }),
+  calculate: (teacherId) => api.get(`/salaries/calculate/${teacherId}`),
+  generateAll: (data) => api.post('/salaries/generate', data),
+  generateSingle: (teacherId, data) => api.post(`/salaries/generate/${teacherId}`, data),
+  getTeacherHistory: (teacherId) => api.get(`/salaries/teacher/${teacherId}`),
+  updateStatus: (id, data) => api.put(`/salaries/${id}/status`, data),
+  delete: (id) => api.delete(`/salaries/${id}`),
 }
 
 // Reports API

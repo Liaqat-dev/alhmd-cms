@@ -117,9 +117,9 @@ export default function AdminStudentProfile() {
         : null
 
     // Enrollment — resolve name from map since the API only returns the ID
-    const morningRegularName = student.morningRegularClassId ? classMap[student.morningRegularClassId]?.name : null
+    const regularName = student.regularClassId ? classMap[student.regularClassId]?.name : null
 
-    const hasEnrollments = !!morningRegularName
+    const hasEnrollments = !!regularName
 
     return (
         <DashboardLayout title="Student Profile">
@@ -155,7 +155,7 @@ export default function AdminStudentProfile() {
                                     {student.rollNumber || '—'}
                                 </span>
                                 <StatusBadge status={student.status}/>
-                                {morningRegularName && <ClassBadge name={morningRegularName}/>}
+                                {regularName && <ClassBadge name={regularName}/>}
                             </div>
                         </div>
                         <Button
@@ -209,15 +209,15 @@ export default function AdminStudentProfile() {
                                     <span className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">Classes</span>
                                 </div>
                                 <div className="space-y-2">
-                                    {morningRegularName && (
+                                    {regularName && (
                                         <div className="rounded-lg border border-amber-200 dark:border-amber-400/25 overflow-hidden">
                                             <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-400/8">
                                                 <BookOpen className="h-3.5 w-3.5 text-amber-500"/>
-                                                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">{morningRegularName}</span>
+                                                <span className="text-sm font-medium text-amber-800 dark:text-amber-300">{regularName}</span>
                                             </div>
-                                            {(student.morningRegularSubjectEnrollments || []).length > 0 && (
+                                            {(student.regularSubjectEnrollments || []).length > 0 && (
                                                 <div className="px-3 py-2.5 flex flex-wrap gap-1.5">
-                                                    {student.morningRegularSubjectEnrollments.map(se => (
+                                                    {student.regularSubjectEnrollments.map(se => (
                                                         <span key={se.subjectId} className="inline-flex items-center gap-1 text-xs bg-amber-50 dark:bg-amber-400/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-400/20 rounded-md px-2 py-0.5">
                                                             <BookOpen className="h-3 w-3"/>
                                                             {subjectMap[se.subjectId] || se.subjectId}

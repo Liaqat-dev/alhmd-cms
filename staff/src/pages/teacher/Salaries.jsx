@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { useAuth } from '@/context/AuthContext'
-import { morningSalariesAPI } from '@/services/api'
+import { salariesAPI } from '@/services/api'
 import {
     Banknote, BookOpen, CheckCircle2, Clock,
     ChevronDown, ChevronUp, Sun, Loader2,
@@ -175,7 +175,7 @@ export default function TeacherSalaries() {
         const fetch = async () => {
             setLoading(true)
             try {
-                const res = await morningSalariesAPI.getTeacherHistory(teacherId)
+                const res = await salariesAPI.getTeacherHistory(teacherId)
                 setSalaries(res.data.salaries || [])
             } catch {
                 // fail gracefully

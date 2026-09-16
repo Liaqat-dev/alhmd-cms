@@ -5,7 +5,7 @@ const catchAsync = require('../utils/catchAsync');
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // Aggregates unique teachers from a class's subjects
-// morningSubjects has teacherAssignments[].teacher
+// subjects has teacherAssignments[].teacher
 function collectTeachers(subjects) {
   const seen = new Set();
   const teachers = [];
@@ -34,7 +34,7 @@ const subjectWithTeachers = {
 // GET /classes/all — returns every class with subjects. Used by AddStudent to
 // populate the class picker.
 const getAllClassesNoBatch = catchAsync(async (req, res) => {
-  const morningClasses = await prisma.morningClass.findMany({
+  const classes = await prisma.class.findMany({
     include: {
       subjects: subjectWithTeachers,
       _count: { select: { enrollments: { where: { isActive: true } } } }
@@ -42,7 +42,7 @@ const getAllClassesNoBatch = catchAsync(async (req, res) => {
     orderBy: { name: 'asc' }
   });
 
-  const mapped = morningClasses.map(c => ({
+  const mapped = classes.map(c => ({
     ...c,
     monthlyFee: null,
     teachers: collectTeachers(c.subjects),
@@ -67,7 +67,7 @@ const getAllClasses = catchAsync(async (req, res) => {
     _count: { select: { enrollments: { where: { isActive: true } } } }
   };
 
-  const classes = await prisma.morningClass.findMany({ where, include, orderBy: { name: 'asc' } });
+  const classes = await prisma.class.findMany({ where, include, orderBy: { name: 'asc' } });
 
   const mapped = classes.map(c => ({
     ...c,
@@ -95,7 +95,7 @@ const getClassById = catchAsync(async (req, res) => {
     _count: { select: { enrollments: { where: { isActive: true } } } }
   };
 
-  const classData = await prisma.morningClass.findUnique({ where: { id }, include });
+  const classData = await prisma.class.findUnique({ where: { id }, include });
   if (!classData) throw new AppError(404, 'Class not found');
 
   const students = classData.enrollments.map(e => e.student);
@@ -133,7 +133,7 @@ const createClass = catchAsync(async (req, res) => {
     _count: { select: { enrollments: { where: { isActive: true } } } }
   };
 
-  const newClass = await prisma.morningClass.create({ data, include });
+  const newClass = await prisma.class.create({ data, include });
 
   const response = {
     ...newClass,
@@ -150,7 +150,7 @@ const updateClass = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { name, gradeLevel, program, studentLimit } = req.body;
 
-  const existing = await prisma.morningClass.findUnique({ where: { id } });
+  const existing = await prisma.class.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Class not found');
 
   const data = {
@@ -165,7 +165,7 @@ const updateClass = catchAsync(async (req, res) => {
     _count: { select: { enrollments: { where: { isActive: true } } } }
   };
 
-  const updatedClass = await prisma.morningClass.update({ where: { id }, data, include });
+  const updatedClass = await prisma.class.update({ where: { id }, data, include });
 
   const response = {
     ...updatedClass,
@@ -181,7 +181,7 @@ const updateClass = catchAsync(async (req, res) => {
 const deleteClass = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  const countResult = await prisma.morningClass.findUnique({
+  const countResult = await prisma.class.findUnique({
     where: { id },
     include: {
       _count: {
@@ -201,7 +201,7 @@ const deleteClass = catchAsync(async (req, res) => {
     });
   }
 
-  await prisma.morningClass.delete({ where: { id } });
+  await prisma.class.delete({ where: { id } });
 
   res.json({ message: 'Class deleted successfully' });
 });
@@ -213,10 +213,10 @@ const addSubject = catchAsync(async (req, res) => {
 
   if (!name) throw new AppError(400, { name: 'Subject name is required' });
 
-  const existing = await prisma.morningClass.findUnique({ where: { id } });
+  const existing = await prisma.class.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Class not found');
 
-  const subject = await prisma.morningSubject.create({
+  const subject = await prisma.subject.create({
     data: { name: name.trim(), gradeLevel: existing.gradeLevel, classes: { connect: { id } } }
   });
 
@@ -227,10 +227,10 @@ const addSubject = catchAsync(async (req, res) => {
 const removeSubject = catchAsync(async (req, res) => {
   const { subjectId } = req.params;
 
-  const subject = await prisma.morningSubject.findUnique({ where: { id: subjectId } });
+  const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
   if (!subject) throw new AppError(404, 'Subject not found');
 
-  await prisma.morningSubject.delete({ where: { id: subjectId } });
+  await prisma.subject.delete({ where: { id: subjectId } });
   res.json({ message: 'Subject removed successfully' });
 });
 

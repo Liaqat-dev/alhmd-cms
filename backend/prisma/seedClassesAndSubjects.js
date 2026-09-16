@@ -28,12 +28,12 @@ async function main() {
   console.log('Seeding classes and subjects...');
 
   // ── Classes: one per (program, gradeLevel) ─────────────────────────────────
-  const classes = {}; // 'PROGRAM::GRADE' → MorningClass
+  const classes = {}; // 'PROGRAM::GRADE' → Class
   for (const program of PROGRAMS) {
     for (const gradeLevel of GRADE_LEVELS) {
       const gradeSuffix = gradeLevel === 'GRADE_11' ? '11' : '12';
       const name = `${program}-${gradeSuffix}`;
-      const cls = await prisma.morningClass.upsert({
+      const cls = await prisma.class.upsert({
         where: { name },
         update: { gradeLevel, program },
         create: { name, gradeLevel, program },
@@ -48,7 +48,7 @@ async function main() {
   // (e.g. Physics in MED/ENG/ICS, Mathematics in ENG/ICS/IT) is created once
   // per grade level and linked to every relevant class.
   let subjectCount = 0;
-  const subjectsByGradeName = {}; // 'GRADE::name' → MorningSubject
+  const subjectsByGradeName = {}; // 'GRADE::name' → Subject
 
   for (const gradeLevel of GRADE_LEVELS) {
     // Build name → [classIds] for this grade level across compulsory + program subjects
@@ -66,7 +66,7 @@ async function main() {
 
     for (const [name, classIdSet] of Object.entries(classIdsByName)) {
       const classConnections = [...classIdSet].map(id => ({ id }));
-      const subject = await prisma.morningSubject.upsert({
+      const subject = await prisma.subject.upsert({
         where: { name_gradeLevel: { name, gradeLevel } },
         update: { classes: { set: classConnections } },
         create: { name, gradeLevel, classes: { connect: classConnections } },

@@ -6,7 +6,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table'
 import {FormField, FormSelect, ServerError} from '@/components/ui/form-fields'
 import useAppForm from '@/hooks/useAppForm'
-import {morningFeesAPI, studentsAPI} from '@/services/api'
+import {feesAPI, studentsAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {useClasses} from '@/hooks/useClasses'
 import {
@@ -35,7 +35,7 @@ const MONTHS = [
     {value: 11, label: 'November'}, {value: 12, label: 'December'},
 ]
 
-export default function MorningFees() {
+export default function Fees() {
     const {classes} = useClasses()
     const [challans, setChallans] = useState([])
     const [students, setStudents] = useState([])
@@ -59,13 +59,13 @@ export default function MorningFees() {
         },
         onSubmit: async (values) => {
             if (generateType === 'single') {
-                await morningFeesAPI.generate({
+                await feesAPI.generate({
                     studentId: values.studentId, month: values.month,
                     year: values.year, discount: values.discount, remarks: values.remarks,
                 })
                 return 'Challan generated successfully'
             } else {
-                const res = await morningFeesAPI.generateClass({
+                const res = await feesAPI.generateClass({
                     classId: values.classId, month: values.month, year: values.year,
                 })
                 return `${res.data.results.created} challans generated, ${res.data.results.skipped} skipped`
@@ -81,7 +81,7 @@ export default function MorningFees() {
     const paymentForm = useAppForm({
         initialValues: {paidAmount: '', remarks: ''},
         onSubmit: async (values) => {
-            await morningFeesAPI.updatePayment(selectedChallan.id, values)
+            await feesAPI.updatePayment(selectedChallan.id, values)
             return 'Payment updated successfully'
         },
         onSuccess: (message) => {
@@ -109,8 +109,8 @@ export default function MorningFees() {
         try {
             setLoading(true)
             const [challansRes, statsRes] = await Promise.all([
-                morningFeesAPI.getAll(filters),
-                morningFeesAPI.getStatistics({month: filters.month, year: filters.year})
+                feesAPI.getAll(filters),
+                feesAPI.getStatistics({month: filters.month, year: filters.year})
             ])
             setChallans(challansRes.data.challans)
             setStatistics(statsRes.data.statistics)
@@ -133,7 +133,7 @@ export default function MorningFees() {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this challan?')) return
         try {
-            await morningFeesAPI.delete(id)
+            await feesAPI.delete(id)
             toast({title: 'Success', description: 'Challan deleted successfully'})
             fetchData()
         } catch (error) {
@@ -160,7 +160,7 @@ export default function MorningFees() {
 
     const handleDownloadPDF = async (challan) => {
         try {
-            const res = await morningFeesAPI.downloadPDF(challan.id)
+            const res = await feesAPI.downloadPDF(challan.id)
             const blob = new Blob([res.data], {type: 'application/pdf'})
             const url = window.URL.createObjectURL(blob)
             const link = document.createElement('a')
@@ -250,7 +250,7 @@ export default function MorningFees() {
 
             <PagePanel
                 icon={DollarSign}
-                title="Morning Fee"
+                title="Fee Challans"
                 count={challans.length}
                 countLabel="records found"
                 addLabel="Generate"
@@ -390,7 +390,7 @@ export default function MorningFees() {
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
-                        <DialogTitle className="text-lg">Generate Morning Fee Challan</DialogTitle>
+                        <DialogTitle className="text-lg">Generate Fee Challan</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={challanForm.formik.handleSubmit} className="space-y-4">
                         <div className="grid grid-cols-2 gap-2">

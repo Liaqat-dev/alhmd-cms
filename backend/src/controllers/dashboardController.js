@@ -7,23 +7,23 @@ const getAdminStats = catchAsync(async (req, res) => {
   today.setHours(0, 0, 0, 0);
 
   const [totalStudents, totalTeachers, totalClasses, recentEnrollments, classStats, todayAttendance] = await Promise.all([
-    prisma.morningEnrollment.count({ where: { isActive: true } }),
+    prisma.enrollment.count({ where: { isActive: true } }),
     prisma.teacher.count(),
-    prisma.morningClass.count(),
-    prisma.morningEnrollment.findMany({
+    prisma.class.count(),
+    prisma.enrollment.findMany({
       take: 5,
       where: { isActive: true },
       orderBy: { enrolledAt: 'desc' },
       include: {
         student: { select: { id: true, name: true, rollNumber: true, profilePicUrl: true } },
-        morningClass: { select: { name: true } }
+        class: { select: { name: true } }
       }
     }),
-    prisma.morningClass.findMany({
+    prisma.class.findMany({
       include: { _count: { select: { enrollments: { where: { isActive: true } } } } },
       orderBy: { name: 'asc' }
     }),
-    prisma.morningAttendance.groupBy({
+    prisma.attendance.groupBy({
       by: ['status'],
       where: { date: today },
       _count: { status: true }
@@ -43,7 +43,7 @@ const getAdminStats = catchAsync(async (req, res) => {
       name: e.student.name,
       rollNumber: e.student.rollNumber,
       profilePicUrl: e.student.profilePicUrl || null,
-      class: { name: e.morningClass.name }
+      class: { name: e.class.name }
     })),
     classStats: classStats.map(c => ({
       id: c.id, name: c.name, gradeLevel: c.gradeLevel, studentCount: c._count.enrollments
@@ -58,7 +58,7 @@ const getTeacherStats = catchAsync(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const subjectAssignments = await prisma.morningSubjectTeacher.findMany({
+  const subjectAssignments = await prisma.subjectTeacher.findMany({
     where: { teacherId },
     include: {
       subject: {
@@ -82,16 +82,16 @@ const getTeacherStats = catchAsync(async (req, res) => {
   // Use the same source so the dashboard count matches.
   const classIds = [...new Set(subjectClassPairs.map(p => p.classId))];
 
-  const enrollments = await prisma.morningEnrollment.findMany({
-    where: { morningClassId: { in: classIds }, isActive: true },
-    select: { studentId: true, morningClassId: true }
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: { in: classIds }, isActive: true },
+    select: { studentId: true, classId: true }
   });
 
   // Per-class unique active student count
   const classStudentMap = {};
   for (const id of classIds) classStudentMap[id] = new Set();
   for (const e of enrollments) {
-    if (e.morningClassId) classStudentMap[e.morningClassId].add(e.studentId);
+    if (e.classId) classStudentMap[e.classId].add(e.studentId);
   }
 
   // Total unique students — derive from classStudentMap so it stays
@@ -102,7 +102,7 @@ const getTeacherStats = catchAsync(async (req, res) => {
   }
   const totalStudents = allStudentIds.size;
 
-  const todayAttendance = await prisma.morningAttendance.findMany({ where: { teacherId, date: today } });
+  const todayAttendance = await prisma.attendance.findMany({ where: { teacherId, date: today } });
   const markedCount = todayAttendance.length;
 
   res.json({
@@ -154,10 +154,10 @@ const getStudentDashboard = catchAsync(async (req, res) => {
   const todayDayOfWeek = daysOfWeek[now.getDay()];
 
   // Get the student's class enrollment
-  const mainEnrollment = await prisma.morningEnrollment.findUnique({
+  const mainEnrollment = await prisma.enrollment.findUnique({
     where: { studentId },
     include: {
-      morningClass: {
+      class: {
         include: {
           subjects: {
             select: { id: true, name: true }
@@ -173,29 +173,29 @@ const getStudentDashboard = catchAsync(async (req, res) => {
   const allEnrollments = mainEnrollment ? [mainEnrollment] : [];
 
   // Then fetch other data in parallel
-  const classIds = allEnrollments.map(e => e.morningClassId).filter(Boolean);
+  const classIds = allEnrollments.map(e => e.classId).filter(Boolean);
   const [student, studentSubjects, attendances, timetableEntries] = await Promise.all([
     prisma.student.findUnique({
       where: { id: studentId },
       select: { id: true, name: true, fatherName: true, rollNumber: true, dateOfBirth: true, gender: true, address: true, phone: true, guardianPhone: true, joiningDate: true, profilePicUrl: true }
     }),
-    prisma.morningStudentSubject.findMany({ where: { studentId } }),
-    prisma.morningAttendance.findMany({
+    prisma.studentSubject.findMany({ where: { studentId } }),
+    prisma.attendance.findMany({
       where: { studentId, date: { gte: monthStart, lte: monthEnd } }
     }),
-    classIds.length > 0 ? prisma.morningTimetable.findMany({
-      where: { morningClassId: { in: classIds }, dayOfWeek: todayDayOfWeek },
+    classIds.length > 0 ? prisma.timetable.findMany({
+      where: { classId: { in: classIds }, dayOfWeek: todayDayOfWeek },
       include: {
         subject: { select: { id: true, name: true } },
         teacher: { select: { id: true, name: true } },
-        morningClass: { select: { id: true, name: true } }
+        class: { select: { id: true, name: true } }
       },
       orderBy: { startTime: 'asc' }
     }) : []
   ]);
 
-  const primaryClass = mainEnrollment?.morningClass;
-  const classNames = allEnrollments.map(e => e.morningClass.name).join(', ') || 'N/A';
+  const primaryClass = mainEnrollment?.class;
+  const classNames = allEnrollments.map(e => e.class.name).join(', ') || 'N/A';
 
   // Calculate attendance stats
   const total = attendances.length;
@@ -213,7 +213,7 @@ const getStudentDashboard = catchAsync(async (req, res) => {
     .map(entry => ({
       id: entry.id,
       subject: entry.subject,
-      class: entry.morningClass,
+      class: entry.class,
       teacher: entry.teacher,
       startTime: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${entry.startTime}`,
       endTime: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${entry.endTime}`,
@@ -224,11 +224,11 @@ const getStudentDashboard = catchAsync(async (req, res) => {
   // Build enrolled classes — filter subjects to only ones the student is enrolled in
   const enrolledSubjectIdSet = new Set(enrolledSubjectIds);
   const enrolledClasses = allEnrollments.map(enrollment => ({
-    id: enrollment.morningClass.id,
-    name: enrollment.morningClass.name,
-    subjects: (enrollment.morningClass.subjects || []).filter(s => enrolledSubjectIdSet.has(s.id)),
+    id: enrollment.class.id,
+    name: enrollment.class.name,
+    subjects: (enrollment.class.subjects || []).filter(s => enrolledSubjectIdSet.has(s.id)),
     teacherCount: 0,
-    createdAt: enrollment.morningClass.createdAt
+    createdAt: enrollment.class.createdAt
   }));
 
   res.json({

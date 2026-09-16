@@ -1,10 +1,10 @@
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import MorningSalaries from './salaries/MorningSalaries'
+import Salaries from './salaries/Salaries'
 
 export default function AdminSalaries() {
   return (
     <DashboardLayout title="Teacher Salaries">
-      <MorningSalaries />
+      <Salaries />
     </DashboardLayout>
   )
 }

@@ -5,7 +5,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table'
 import {FormField, FormSelect, ServerError} from '@/components/ui/form-fields'
 import useAppForm from '@/hooks/useAppForm'
-import {morningSalariesAPI} from '@/services/api'
+import {salariesAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {
     Banknote,
@@ -40,7 +40,7 @@ const STATUS_COLORS = {
 
 const formatCurrency = (amount) => `Rs. ${Number(amount || 0).toLocaleString()}`
 
-export default function MorningSalaries() {
+export default function Salaries() {
     const [salaries, setSalaries] = useState([])
     const [statistics, setStatistics] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -60,7 +60,7 @@ export default function MorningSalaries() {
             year: new Date().getFullYear(),
         },
         onSubmit: async (values) => {
-            const res = await morningSalariesAPI.generateAll(values)
+            const res = await salariesAPI.generateAll(values)
             return {message: res.data.message, month: values.month, year: values.year}
         },
         onSuccess: ({message, month, year}) => {
@@ -74,7 +74,7 @@ export default function MorningSalaries() {
     const statusForm = useAppForm({
         initialValues: {remarks: ''},
         onSubmit: async (values) => {
-            await morningSalariesAPI.updateStatus(
+            await salariesAPI.updateStatus(
                 statusTarget.salary.id,
                 {status: statusTarget.newStatus, remarks: values.remarks || undefined}
             )
@@ -97,8 +97,8 @@ export default function MorningSalaries() {
             const params = {month: filters.month, year: filters.year}
             if (filters.status) params.status = filters.status
             const [salaryRes, statsRes] = await Promise.all([
-                morningSalariesAPI.getAll(params),
-                morningSalariesAPI.getStatistics(params),
+                salariesAPI.getAll(params),
+                salariesAPI.getStatistics(params),
             ])
             setSalaries(salaryRes.data.salaries)
             setStatistics(statsRes.data.statistics)
@@ -123,7 +123,7 @@ export default function MorningSalaries() {
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this salary record?')) return
         try {
-            await morningSalariesAPI.delete(id)
+            await salariesAPI.delete(id)
             toast({title: 'Success', description: 'Salary record deleted'})
             fetchData()
         } catch (error) {
@@ -190,7 +190,7 @@ export default function MorningSalaries() {
                 icon={Banknote}
                 iconBg="bg-primary-500/10 dark:bg-primary-500/15"
                 iconColor="text-primary-600 dark:text-primary-400"
-                title="Morning Salaries"
+                title="Salaries"
                 count={salaries.length}
                 countLabel={`records for ${MONTHS.find(m => m.value === filters.month)?.label} ${filters.year}`}
                 addLabel="Generate"
@@ -297,7 +297,7 @@ export default function MorningSalaries() {
             {/* Generate Dialog */}
             <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
                 <DialogContent className="max-w-sm">
-                    <DialogHeader><DialogTitle>Generate Morning Salaries</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>Generate Salaries</DialogTitle></DialogHeader>
                     <form onSubmit={generateForm.formik.handleSubmit} className="space-y-4">
                         <p className="text-sm text-muted-foreground">
                             Generate salary slips for all teachers using their manually set salary amounts from their profiles.

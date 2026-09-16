@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { morningFeesAPI } from '@/services/api'
+import { feesAPI } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
 import { useClasses } from '@/hooks/useClasses'
 import { Calendar, CreditCard, DollarSign, Receipt } from 'lucide-react'
@@ -41,7 +41,7 @@ export default function PaymentHistory() {
   const fetchPaymentHistory = async () => {
     try {
       setLoading(true)
-      const res = await morningFeesAPI.getPaymentHistory(filters)
+      const res = await feesAPI.getPaymentHistory(filters)
       setPayments(res.data.payments)
     } catch (error) {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to fetch payment history' })
@@ -192,26 +192,26 @@ export default function PaymentHistory() {
                     <TableCell>
                       <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary/15 to-primary/5 text-xs font-bold text-primary flex-shrink-0">
-                          {payment.morningChallan?.student?.name?.charAt(0).toUpperCase()}
+                          {payment.challan?.student?.name?.charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium truncate">{payment.morningChallan?.student?.name}</p>
-                          <p className="text-xs text-muted-foreground">{payment.morningChallan?.student?.rollNumber}</p>
+                          <p className="font-medium truncate">{payment.challan?.student?.name}</p>
+                          <p className="text-xs text-muted-foreground">{payment.challan?.student?.rollNumber}</p>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center rounded-md bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/10 px-2 py-0.5 text-xs font-medium">
-                        {payment.morningChallan?.student?.morningEnrollment?.morningClass?.name}
+                        {payment.challan?.student?.enrollment?.class?.name}
                       </span>
                     </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-mono font-medium">
-                        {payment.morningChallan?.challanNumber}
+                        {payment.challan?.challanNumber}
                       </span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {getMonthName(payment.morningChallan?.month)} {payment.morningChallan?.year}
+                      {getMonthName(payment.challan?.month)} {payment.challan?.year}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-sm tabular-nums">
                       Rs. {Number(payment.amount).toLocaleString()}

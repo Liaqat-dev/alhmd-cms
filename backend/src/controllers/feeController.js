@@ -9,7 +9,7 @@ const generateChallanNumber = async (month, year) => {
   const prefix = `CGA-M-${year}-${monthStr}-`;
   // Use the highest existing sequence (not the count) so that deleting a
   // challan in the middle never causes the next number to collide.
-  const last = await prisma.morningChallan.findFirst({
+  const last = await prisma.challan.findFirst({
     where: { challanNumber: { startsWith: prefix } },
     orderBy: { challanNumber: 'desc' },
     select: { challanNumber: true }
@@ -19,7 +19,7 @@ const generateChallanNumber = async (month, year) => {
 };
 
 const calculateArrears = async (studentId, currentMonth, currentYear) => {
-  const unpaidChallans = await prisma.morningChallan.findMany({
+  const unpaidChallans = await prisma.challan.findMany({
     where: {
       studentId,
       status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] },
@@ -39,14 +39,14 @@ const studentInclude = {
     name: true,
     rollNumber: true,
     fatherName: true,
-    morningEnrollment: { include: { morningClass: true } }
+    enrollment: { include: { class: true } }
   }
 };
 
 // Map DB row so frontend gets challan.student.class
 const mapChallan = (c) => ({
   ...c,
-  student: { ...c.student, class: c.student.morningEnrollment?.morningClass || null }
+  student: { ...c.student, class: c.student.enrollment?.class || null }
 });
 
 const getAllChallans = catchAsync(async (req, res) => {
@@ -57,10 +57,10 @@ const getAllChallans = catchAsync(async (req, res) => {
   if (month) where.month = parseInt(month);
   if (year) where.year = parseInt(year);
   if (classId) {
-    where.student = { morningEnrollment: { morningClassId: classId, isActive: true } };
+    where.student = { enrollment: { classId: classId, isActive: true } };
   }
 
-  const challans = await prisma.morningChallan.findMany({
+  const challans = await prisma.challan.findMany({
     where,
     include: { expenses: true, student: studentInclude },
     orderBy: [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }]
@@ -71,7 +71,7 @@ const getAllChallans = catchAsync(async (req, res) => {
 
 const getChallanById = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const challan = await prisma.morningChallan.findUnique({
+  const challan = await prisma.challan.findUnique({
     where: { id },
     include: { expenses: true, student: studentInclude }
   });
@@ -83,7 +83,7 @@ const getStudentChallans = catchAsync(async (req, res) => {
   const studentId = req.user.student?.id || req.params.studentId;
   if (!studentId) throw new AppError(400, { message: 'Student ID required' });
 
-  const challans = await prisma.morningChallan.findMany({
+  const challans = await prisma.challan.findMany({
     where: { studentId },
     include: { expenses: true, student: studentInclude },
     orderBy: [{ year: 'desc' }, { month: 'desc' }]
@@ -101,25 +101,25 @@ const generateChallan = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'Student ID, month, and year are required' });
   }
 
-  const existing = await prisma.morningChallan.findUnique({
+  const existing = await prisma.challan.findUnique({
     where: { studentId_month_year: { studentId, month: parseInt(month), year: parseInt(year) } }
   });
   if (existing) throw new AppError(400, { message: 'Challan already exists for this month' });
 
   const student = await prisma.student.findUnique({
     where: { id: studentId },
-    select: { id: true, name: true, rollNumber: true, morningEnrollment: { include: { morningClass: true } } }
+    select: { id: true, name: true, rollNumber: true, enrollment: { include: { class: true } } }
   });
   if (!student) throw new AppError(404, 'Student not found');
-  if (!student.morningEnrollment) throw new AppError(400, { message: 'Student not enrolled in any class' });
+  if (!student.enrollment) throw new AppError(400, { message: 'Student not enrolled in any class' });
 
-  const monthlyFee = Number(student.morningEnrollment.monthlyFee);
+  const monthlyFee = Number(student.enrollment.monthlyFee);
 
   const arrears = await calculateArrears(studentId, parseInt(month), parseInt(year));
   const discountAmount = discount ? parseFloat(discount) : 0;
 
   const expenses = await prisma.studentExpense.findMany({
-    where: { studentId, month: parseInt(month), year: parseInt(year), morningChallanId: null }
+    where: { studentId, month: parseInt(month), year: parseInt(year), challanId: null }
   });
   const additionalCharges = expenses.reduce((s, e) => s + Number(e.amount), 0);
 
@@ -128,7 +128,7 @@ const generateChallan = catchAsync(async (req, res) => {
   const dueDate = new Date(parseInt(year), parseInt(month) - 1, CHALLAN_DUE_DATE_DAY);
 
   const challan = await prisma.$transaction(async (tx) => {
-    const created = await tx.morningChallan.create({
+    const created = await tx.challan.create({
       data: {
         challanNumber, studentId, month: parseInt(month), year: parseInt(year),
         monthlyFee, arrears, discount: discountAmount, additionalCharges, totalAmount, dueDate,
@@ -140,11 +140,11 @@ const generateChallan = catchAsync(async (req, res) => {
     if (expenses.length > 0) {
       await tx.studentExpense.updateMany({
         where: { id: { in: expenses.map(e => e.id) } },
-        data: { morningChallanId: created.id }
+        data: { challanId: created.id }
       });
     }
 
-    await tx.morningChallan.updateMany({
+    await tx.challan.updateMany({
       where: {
         studentId,
         status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] },
@@ -168,8 +168,8 @@ const generateClassChallans = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'Class ID, month, and year are required' });
   }
 
-  const enrollments = await prisma.morningEnrollment.findMany({
-    where: { morningClassId: classId, isActive: true },
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: classId, isActive: true },
     include: { student: true }
   });
 
@@ -178,7 +178,7 @@ const generateClassChallans = catchAsync(async (req, res) => {
   for (const enrollment of enrollments) {
     const student = enrollment.student;
     try {
-      const existing = await prisma.morningChallan.findUnique({
+      const existing = await prisma.challan.findUnique({
         where: { studentId_month_year: { studentId: student.id, month: parseInt(month), year: parseInt(year) } }
       });
       if (existing) { results.skipped++; continue; }
@@ -189,13 +189,13 @@ const generateClassChallans = catchAsync(async (req, res) => {
       const monthlyFee = Number(enrollment.monthlyFee);
 
       const expenses = await prisma.studentExpense.findMany({
-        where: { studentId: student.id, month: parseInt(month), year: parseInt(year), morningChallanId: null }
+        where: { studentId: student.id, month: parseInt(month), year: parseInt(year), challanId: null }
       });
       const additionalCharges = expenses.reduce((s, e) => s + Number(e.amount), 0);
       const totalAmount = monthlyFee + arrears + additionalCharges;
 
       await prisma.$transaction(async (tx) => {
-        const created = await tx.morningChallan.create({
+        const created = await tx.challan.create({
           data: {
             challanNumber, studentId: student.id, month: parseInt(month), year: parseInt(year),
             monthlyFee, arrears, additionalCharges, totalAmount, dueDate, createdBy: req.user.id
@@ -204,10 +204,10 @@ const generateClassChallans = catchAsync(async (req, res) => {
         if (expenses.length > 0) {
           await tx.studentExpense.updateMany({
             where: { id: { in: expenses.map(e => e.id) } },
-            data: { morningChallanId: created.id }
+            data: { challanId: created.id }
           });
         }
-        await tx.morningChallan.updateMany({
+        await tx.challan.updateMany({
           where: {
             studentId: student.id,
             status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] },
@@ -235,7 +235,7 @@ const updateChallanPayment = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { paidAmount, status, remarks, paymentMethod } = req.body;
 
-  const existing = await prisma.morningChallan.findUnique({ where: { id } });
+  const existing = await prisma.challan.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Challan not found');
 
   const updateData = {};
@@ -250,7 +250,7 @@ const updateChallanPayment = catchAsync(async (req, res) => {
   if (status) updateData.status = status;
   if (remarks) updateData.remarks = remarks;
 
-  const challan = await prisma.morningChallan.update({
+  const challan = await prisma.challan.update({
     where: { id },
     data: updateData,
     include: { student: studentInclude }
@@ -261,8 +261,8 @@ const updateChallanPayment = catchAsync(async (req, res) => {
     const newBalance = Number(challan.totalAmount) - Number(challan.paidAmount);
     await prisma.paymentHistory.create({
       data: {
-        paymentType: 'MORNING_FEE',
-        morningChallanId: id,
+        paymentType: 'FEE',
+        challanId: id,
         amount: parseFloat(paidAmount) - Number(existing.paidAmount),
         paymentMethod: paymentMethod || 'CASH',
         previousBalance, newBalance,
@@ -277,7 +277,7 @@ const updateChallanPayment = catchAsync(async (req, res) => {
 const updateOverdueChallans = catchAsync(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const result = await prisma.morningChallan.updateMany({
+  const result = await prisma.challan.updateMany({
     where: { status: 'UNPAID', dueDate: { lt: today } },
     data: { status: 'OVERDUE' }
   });
@@ -286,7 +286,7 @@ const updateOverdueChallans = catchAsync(async (req, res) => {
 
 const deleteChallan = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const challan = await prisma.morningChallan.findUnique({ where: { id } });
+  const challan = await prisma.challan.findUnique({ where: { id } });
   if (!challan) throw new AppError(404, 'Challan not found');
   if (challan.status === 'PAID') throw new AppError(400, { message: 'Cannot delete a paid challan' });
   if (Number(challan.paidAmount) > 0) throw new AppError(400, { message: 'Cannot delete a partially paid challan' });
@@ -296,19 +296,19 @@ const deleteChallan = catchAsync(async (req, res) => {
 
   await prisma.$transaction(async (tx) => {
     // Restore any challans that were rolled into this one
-    const rolledChallans = await tx.morningChallan.findMany({
+    const rolledChallans = await tx.challan.findMany({
       where: { rolledIntoId: id }
     });
 
     for (const rc of rolledChallans) {
       const restored = rc.dueDate < today ? 'OVERDUE' : 'UNPAID';
-      await tx.morningChallan.update({
+      await tx.challan.update({
         where: { id: rc.id },
         data: { status: restored, rolledIntoId: null }
       });
     }
 
-    await tx.morningChallan.delete({ where: { id } });
+    await tx.challan.delete({ where: { id } });
   });
 
   res.json({ message: 'Challan deleted successfully' });
@@ -319,7 +319,7 @@ const getFeeStatistics = catchAsync(async (req, res) => {
   const currentMonth = month ? parseInt(month) : new Date().getMonth() + 1;
   const currentYear = year ? parseInt(year) : new Date().getFullYear();
 
-  const challans = await prisma.morningChallan.findMany({
+  const challans = await prisma.challan.findMany({
     where: { month: currentMonth, year: currentYear }
   });
 
@@ -341,7 +341,7 @@ const getFeeStatistics = catchAsync(async (req, res) => {
 
 const downloadChallanPDF = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const challan = await prisma.morningChallan.findUnique({
+  const challan = await prisma.challan.findUnique({
     where: { id },
     include: { expenses: true, student: studentInclude }
   });
@@ -361,28 +361,28 @@ const downloadChallanPDF = catchAsync(async (req, res) => {
 
 const getPaymentHistory = catchAsync(async (req, res) => {
   const { studentId, month, year } = req.query;
-  const where = { paymentType: 'MORNING_FEE' };
+  const where = { paymentType: 'FEE' };
 
   if (studentId) {
-    where.morningChallan = { studentId };
+    where.challan = { studentId };
   }
   if (month || year) {
-    where.morningChallan = where.morningChallan || {};
-    if (month) where.morningChallan.month = parseInt(month);
-    if (year) where.morningChallan.year = parseInt(year);
+    where.challan = where.challan || {};
+    if (month) where.challan.month = parseInt(month);
+    if (year) where.challan.year = parseInt(year);
   }
 
   const payments = await prisma.paymentHistory.findMany({
     where,
     include: {
-      morningChallan: {
+      challan: {
         include: {
           student: {
             select: {
               id: true,
               name: true,
               rollNumber: true,
-              morningEnrollment: { include: { morningClass: true } }
+              enrollment: { include: { class: true } }
             }
           }
         }

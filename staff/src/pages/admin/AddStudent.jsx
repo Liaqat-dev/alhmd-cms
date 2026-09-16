@@ -86,8 +86,8 @@ export default function AddStudent() {
     const [allClasses, setAllClasses] = useState([])
     const [loadingClasses, setLoadingClasses] = useState(true)
     const [loadingStudent, setLoadingStudent] = useState(isEditing)
-    const [morningRegularClassId, setMorningRegularClassId] = useState('')
-    const [morningRegularSubjectEnrollments, setMorningRegularSubjectEnrollments] = useState([])
+    const [regularClassId, setRegularClassId] = useState('')
+    const [regularSubjectEnrollments, setRegularSubjectEnrollments] = useState([])
     const [expenses, setExpenses] = useState([])
     const [originalExpenseIds, setOriginalExpenseIds] = useState([])
     const {toast} = useToast()
@@ -137,8 +137,8 @@ export default function AddStudent() {
         onSubmit: async (values) => {
             const payload = {
                 ...values,
-                morningRegularClassId: morningRegularClassId || null,
-                morningRegularSubjectEnrollments,
+                regularClassId: regularClassId || null,
+                regularSubjectEnrollments,
             }
             if (isEditing) {
                 await studentsAPI.update(id, payload)
@@ -186,8 +186,8 @@ export default function AddStudent() {
         try {
             const response = await studentsAPI.getById(id)
             const student = response.data.student
-            setMorningRegularClassId(student.morningRegularClassId || '')
-            setMorningRegularSubjectEnrollments((student.morningRegularSubjectEnrollments || []).map(ss => ({
+            setRegularClassId(student.regularClassId || '')
+            setRegularSubjectEnrollments((student.regularSubjectEnrollments || []).map(ss => ({
                 subjectId: ss.subjectId
             })))
             formik.resetForm({
@@ -212,7 +212,7 @@ export default function AddStudent() {
             })
             const expRes = await studentExpensesAPI.getByStudent(id)
             const unlinked = (expRes.data.expenses || []).filter(
-                e => !e.morningChallanId
+                e => !e.challanId
             )
             setExpenses(unlinked.map(e => ({
                 _key: e.id,
@@ -235,9 +235,9 @@ export default function AddStudent() {
     }
 
     // ── Derived state ──────────────────────────────────────────────────────────
-    const morningRegularClass = allClasses.find(c => c.id === morningRegularClassId)
-    const morningRegularClassSubjects = morningRegularClass?.subjects || []
-    const selectedMorningRegularSubjectIds = morningRegularSubjectEnrollments.map(e => e.subjectId)
+    const regularClass = allClasses.find(c => c.id === regularClassId)
+    const regularClassSubjects = regularClass?.subjects || []
+    const selectedRegularSubjectIds = regularSubjectEnrollments.map(e => e.subjectId)
 
     const academicYearOptions = Array.from({length: 5}, (_, i) => {
         const year = currentYear - 4 + i
@@ -254,26 +254,26 @@ export default function AddStudent() {
     }
 
     // ── Enrollment handlers ────────────────────────────────────────────────────
-    const handleMorningRegularSelect = (cls) => {
-        if (morningRegularClassId === cls.id) {
-            setMorningRegularClassId('')
-            setMorningRegularSubjectEnrollments([])
+    const handleRegularSelect = (cls) => {
+        if (regularClassId === cls.id) {
+            setRegularClassId('')
+            setRegularSubjectEnrollments([])
         } else {
-            setMorningRegularClassId(cls.id)
-            setMorningRegularSubjectEnrollments([])
+            setRegularClassId(cls.id)
+            setRegularSubjectEnrollments([])
         }
     }
 
-    const toggleMorningRegularSubject = (subject) => {
-        setMorningRegularSubjectEnrollments(prev => {
+    const toggleRegularSubject = (subject) => {
+        setRegularSubjectEnrollments(prev => {
             const exists = prev.find(e => e.subjectId === subject.id)
             if (exists) return prev.filter(e => e.subjectId !== subject.id)
             return [...prev, {subjectId: subject.id}]
         })
     }
 
-    const updateMorningRegularSubjectField = (subjectId, field, value) => {
-        setMorningRegularSubjectEnrollments(prev =>
+    const updateRegularSubjectField = (subjectId, field, value) => {
+        setRegularSubjectEnrollments(prev =>
             prev.map(e => e.subjectId === subjectId ? {...e, [field]: value} : e)
         )
     }
@@ -586,18 +586,18 @@ export default function AddStudent() {
                                     </div>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                         {allClasses.map(cls => (
-                                            <button key={cls.id} type="button" onClick={() => handleMorningRegularSelect(cls)}
+                                            <button key={cls.id} type="button" onClick={() => handleRegularSelect(cls)}
                                                 className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                                                    morningRegularClassId === cls.id
+                                                    regularClassId === cls.id
                                                         ? 'border-amber-400 dark:border-amber-400/60 bg-amber-100 dark:bg-amber-400/15 text-amber-900 dark:text-amber-200 shadow-sm'
                                                         : 'border-gray-200 dark:border-dark-700 hover:border-amber-300 dark:hover:border-amber-400/40 hover:bg-amber-50 dark:hover:bg-amber-400/8 text-gray-500 dark:text-dark-400'
                                                 }`}>
-                                                {morningRegularClassId === cls.id && <span className="text-amber-600 dark:text-amber-400 text-base leading-none">✓</span>}
+                                                {regularClassId === cls.id && <span className="text-amber-600 dark:text-amber-400 text-base leading-none">✓</span>}
                                                 {cls.name}
                                             </button>
                                         ))}
                                     </div>
-                                    {morningRegularClassId && morningRegularClass && (
+                                    {regularClassId && regularClass && (
                                         <div className="mt-3 space-y-3">
                                             <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-400/8 border border-amber-200 dark:border-amber-400/20 space-y-2">
                                                 <div className="flex items-center gap-1.5">
@@ -610,10 +610,10 @@ export default function AddStudent() {
                                                     onBlur={() => formik.setFieldTouched('monthlyFee', true)}
                                                     className="w-full rounded-lg border border-amber-200 dark:border-amber-400/30 bg-white dark:bg-dark-900 px-3 py-2 text-sm font-medium text-amber-900 dark:text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400/40"/>
                                             </div>
-                                            {renderSubjectPanel(morningRegularClassSubjects, morningRegularSubjectEnrollments,
-                                                toggleMorningRegularSubject, updateMorningRegularSubjectField,
-                                                () => setMorningRegularSubjectEnrollments(morningRegularClassSubjects.map(s => ({subjectId: s.id}))),
-                                                () => setMorningRegularSubjectEnrollments([]), 'amber', false)}
+                                            {renderSubjectPanel(regularClassSubjects, regularSubjectEnrollments,
+                                                toggleRegularSubject, updateRegularSubjectField,
+                                                () => setRegularSubjectEnrollments(regularClassSubjects.map(s => ({subjectId: s.id}))),
+                                                () => setRegularSubjectEnrollments([]), 'amber', false)}
                                         </div>
                                     )}
                                 </div>
@@ -622,18 +622,18 @@ export default function AddStudent() {
                     )}
 
                     {/* No class warning */}
-                    {!morningRegularClassId && (
+                    {!regularClassId && (
                         <p className="text-[11px] text-amber-600 dark:text-amber-400">Select a class.</p>
                     )}
 
                     {/* Enrollment summary */}
-                    {morningRegularClassId && (
+                    {regularClassId && (
                         <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-gray-50 dark:bg-dark-850 border border-gray-200 dark:border-dark-700">
                             <span className="text-[11px] text-gray-400 dark:text-dark-500 font-medium self-center">Enrolled in:</span>
                             <span className="inline-flex items-center gap-1 text-[11px] font-medium rounded-full px-2.5 py-1 bg-amber-100 dark:bg-amber-400/15 text-amber-800 dark:text-amber-300">
                                 <Sun className="h-3 w-3"/>
-                                {morningRegularClass?.name}
-                                {selectedMorningRegularSubjectIds.length > 0 && <span className="opacity-70">· {selectedMorningRegularSubjectIds.length} subj</span>}
+                                {regularClass?.name}
+                                {selectedRegularSubjectIds.length > 0 && <span className="opacity-70">· {selectedRegularSubjectIds.length} subj</span>}
                                 {formik.values.monthlyFee && <span className="opacity-70">· PKR {Number(formik.values.monthlyFee).toLocaleString()}/mo</span>}
                             </span>
                         </div>

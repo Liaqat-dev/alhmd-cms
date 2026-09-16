@@ -1,10 +1,10 @@
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import MorningFees from './fees/MorningFees'
+import Fees from './fees/Fees'
 
 export default function StudentFees() {
   return (
     <DashboardLayout title="My Fees">
-      <MorningFees />
+      <Fees />
     </DashboardLayout>
   )
 }

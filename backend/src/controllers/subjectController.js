@@ -9,8 +9,8 @@ const classSelect = {
   _count: { select: { enrollments: true } }
 };
 
-// Maps a MorningSubject row (with `classes` included) to the UI-expected shape
-function mapMorning(s) {
+// Maps a Subject row (with `classes` included) to the UI-expected shape
+function mapSubjectRow(s) {
   const classes = (s.classes || []).map(c => ({ id: c.id, name: c.name, gradeLevel: c.gradeLevel }));
   return {
     ...s,
@@ -26,7 +26,7 @@ const GRADE_LEVEL_LABELS = { GRADE_11: 'Grade 11', GRADE_12: 'Grade 12' };
 // Validates that every classId belongs to the given gradeLevel. Throws on mismatch.
 async function validateClassesForGradeLevel(classIds, gradeLevel) {
   if (!classIds || classIds.length === 0) return;
-  const classes = await prisma.morningClass.findMany({
+  const classes = await prisma.class.findMany({
     where: { id: { in: classIds } },
     select: { id: true, gradeLevel: true }
   });
@@ -49,12 +49,12 @@ const getAllSubjects = catchAsync(async (req, res) => {
   if (classId) where.classes = { some: { id: classId } };
   if (gradeLevel) where.gradeLevel = gradeLevel;
 
-  const rows = await prisma.morningSubject.findMany({
+  const rows = await prisma.subject.findMany({
     where,
     include: { classes: { select: classSelect } },
     orderBy: [{ gradeLevel: 'asc' }, { name: 'asc' }]
   });
-  const subjects = rows.map(mapMorning);
+  const subjects = rows.map(mapSubjectRow);
 
   res.json({ subjects });
 });
@@ -63,7 +63,7 @@ const getAllSubjects = catchAsync(async (req, res) => {
 const getSubjectById = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  const row = await prisma.morningSubject.findUnique({
+  const row = await prisma.subject.findUnique({
     where: { id },
     include: {
       classes: { select: classSelect },
@@ -72,7 +72,7 @@ const getSubjectById = catchAsync(async (req, res) => {
   });
   if (!row) throw new AppError(404, 'Subject not found');
 
-  res.json({ subject: mapMorning(row) });
+  res.json({ subject: mapSubjectRow(row) });
 });
 
 // POST /subjects
@@ -87,12 +87,12 @@ const createSubject = catchAsync(async (req, res) => {
   await validateClassesForGradeLevel(ids, gradeLevel);
 
   // Check for duplicate (subject names are unique per grade level)
-  const existing = await prisma.morningSubject.findFirst({
+  const existing = await prisma.subject.findFirst({
     where: { name: { equals: name, mode: 'insensitive' }, gradeLevel }
   });
   if (existing) throw new AppError(409, { name: 'A subject with this name already exists for this grade level' });
 
-  const row = await prisma.morningSubject.create({
+  const row = await prisma.subject.create({
     data: {
       name: name.trim(),
       gradeLevel,
@@ -101,7 +101,7 @@ const createSubject = catchAsync(async (req, res) => {
     include: { classes: { select: classSelect } }
   });
 
-  res.status(201).json({ message: 'Subject created successfully', subject: mapMorning(row) });
+  res.status(201).json({ message: 'Subject created successfully', subject: mapSubjectRow(row) });
 });
 
 // PUT /subjects/:id
@@ -109,7 +109,7 @@ const updateSubject = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { name, gradeLevel, classIds } = req.body;
 
-  const existing = await prisma.morningSubject.findUnique({
+  const existing = await prisma.subject.findUnique({
     where: { id },
     include: { classes: { select: { id: true } } }
   });
@@ -123,13 +123,13 @@ const updateSubject = catchAsync(async (req, res) => {
   await validateClassesForGradeLevel(finalClassIds, finalGradeLevel);
 
   if (name !== undefined) {
-    const dup = await prisma.morningSubject.findFirst({
+    const dup = await prisma.subject.findFirst({
       where: { name: { equals: name, mode: 'insensitive' }, gradeLevel: finalGradeLevel, NOT: { id } }
     });
     if (dup) throw new AppError(409, { name: 'A subject with this name already exists for this grade level' });
   }
 
-  const row = await prisma.morningSubject.update({
+  const row = await prisma.subject.update({
     where: { id },
     data: {
       ...(name !== undefined && { name: name.trim() }),
@@ -139,17 +139,17 @@ const updateSubject = catchAsync(async (req, res) => {
     include: { classes: { select: classSelect } }
   });
 
-  res.json({ message: 'Subject updated successfully', subject: mapMorning(row) });
+  res.json({ message: 'Subject updated successfully', subject: mapSubjectRow(row) });
 });
 
 // DELETE /subjects/:id
 const deleteSubject = catchAsync(async (req, res) => {
   const { id } = req.params;
 
-  const existing = await prisma.morningSubject.findUnique({ where: { id } });
+  const existing = await prisma.subject.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Subject not found');
 
-  await prisma.morningSubject.delete({ where: { id } });
+  await prisma.subject.delete({ where: { id } });
 
   res.json({ message: 'Subject deleted successfully' });
 });
@@ -164,23 +164,23 @@ const bulkCreateSubjects = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'Class ID and subjects array are required' });
   }
 
-  const cls = await prisma.morningClass.findUnique({ where: { id: classId }, select: { id: true, gradeLevel: true } });
+  const cls = await prisma.class.findUnique({ where: { id: classId }, select: { id: true, gradeLevel: true } });
   if (!cls) throw new AppError(400, { classId: 'Class not found' });
 
   const names = [...new Set(subjects.map(s => s.trim()).filter(Boolean))];
 
   let count = 0;
   for (const name of names) {
-    const existing = await prisma.morningSubject.findFirst({
+    const existing = await prisma.subject.findFirst({
       where: { name: { equals: name, mode: 'insensitive' }, gradeLevel: cls.gradeLevel }
     });
     if (existing) {
-      await prisma.morningSubject.update({
+      await prisma.subject.update({
         where: { id: existing.id },
         data: { classes: { connect: { id: classId } } }
       });
     } else {
-      await prisma.morningSubject.create({
+      await prisma.subject.create({
         data: { name, gradeLevel: cls.gradeLevel, classes: { connect: { id: classId } } }
       });
     }

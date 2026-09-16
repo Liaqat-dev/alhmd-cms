@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DashboardLayout from '@/components/layout/DashboardLayout'
-import { announcementsAPI, dashboardAPI, morningFeesAPI } from '@/services/api'
+import { announcementsAPI, dashboardAPI, feesAPI } from '@/services/api'
 import ProfileHeader from '@/components/dashboard/student/ProfileHeader'
 import TodaysLectures from '@/components/dashboard/student/TodaysLectures'
 import AttendanceStats from '@/components/dashboard/student/AttendanceStats'
@@ -27,7 +27,7 @@ export default function StudentDashboard() {
                 const [dashRes, annRes, challanRes] = await Promise.all([
                     dashboardAPI.getStudentDashboard(),
                     announcementsAPI.getAll(),
-                    morningFeesAPI.getMyChallans().catch(() => ({ data: [] })),
+                    feesAPI.getMyChallans().catch(() => ({ data: [] })),
                 ])
                 setData(dashRes.data)
                 setAnnouncements(annRes.data.announcements || annRes.data || [])

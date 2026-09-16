@@ -41,7 +41,7 @@ async function main() {
   ];
   const mCls = {};
   for (const d of clsDefs) {
-    mCls[d.name] = await prisma.morningClass.upsert({ where: { name: d.name }, update: {}, create: d });
+    mCls[d.name] = await prisma.class.upsert({ where: { name: d.name }, update: {}, create: d });
   }
   console.log('✓ Classes:', Object.keys(mCls).join(', '));
 
@@ -57,13 +57,13 @@ async function main() {
     for (const name of subjectNames) {
       const key = `${cls.gradeLevel}::${name}`;
       if (!subjByGradeName[key]) {
-        subjByGradeName[key] = await prisma.morningSubject.upsert({
+        subjByGradeName[key] = await prisma.subject.upsert({
           where: { name_gradeLevel: { name, gradeLevel: cls.gradeLevel } },
           update: { classes: { connect: { id: cls.id } } },
           create: { name, gradeLevel: cls.gradeLevel, classes: { connect: { id: cls.id } } },
         });
       } else {
-        subjByGradeName[key] = await prisma.morningSubject.update({
+        subjByGradeName[key] = await prisma.subject.update({
           where: { id: subjByGradeName[key].id },
           data: { classes: { connect: { id: cls.id } } },
         });
@@ -120,7 +120,7 @@ async function main() {
   const mSubjTeacher = { Mathematics: T1, English: T2, Physics: T4 };
   for (const cn of Object.keys(mCls)) {
     for (const sn of subjectNames) {
-      await prisma.morningSubjectTeacher.upsert({
+      await prisma.subjectTeacher.upsert({
         where: { subjectId_teacherId: { subjectId: mSubj[`${cn}::${sn}`].id, teacherId: mSubjTeacher[sn].id } },
         update: {}, create: { subjectId: mSubj[`${cn}::${sn}`].id, teacherId: mSubjTeacher[sn].id },
       });
@@ -137,27 +137,27 @@ async function main() {
     { cls: 'ENG-I',        subj: 'Physics',     T: T4, day: 'TUESDAY',   s: '10:00', e: '11:00', room: 'R-102' },
   ];
   for (const d of mTTDefs) {
-    await prisma.morningTimetable.upsert({
-      where: { morningClassId_dayOfWeek_startTime: { morningClassId: mCls[d.cls].id, dayOfWeek: d.day, startTime: d.s } },
+    await prisma.timetable.upsert({
+      where: { classId_dayOfWeek_startTime: { classId: mCls[d.cls].id, dayOfWeek: d.day, startTime: d.s } },
       update: {},
-      create: { morningClassId: mCls[d.cls].id, subjectId: mSubj[`${d.cls}::${d.subj}`].id, teacherId: d.T.id, dayOfWeek: d.day, startTime: d.s, endTime: d.e, room: d.room },
+      create: { classId: mCls[d.cls].id, subjectId: mSubj[`${d.cls}::${d.subj}`].id, teacherId: d.T.id, dayOfWeek: d.day, startTime: d.s, endTime: d.e, room: d.room },
     });
   }
   console.log('✓ Timetable:', mTTDefs.length, 'slots');
 
   // ── Students (3) — expenses ──────────────────────────────────────────────
-  // morning:        { class, fee }
+  // enrollment:     { class, fee }
   // expenses:       [{ type, amount }] ← one-time charges (Admission Fee = registration fee)
   const studentDefs = [
     { name: 'Ali Ahmed',   fatherName: 'Ahmed Khan',    gender: 'MALE',   dob: '2009-05-15', cnic: '35202-1111111-1', school: 'City School',
-      morning: { class: 'ICS-I', fee: 6000 },
+      enrollment: { class: 'ICS-I', fee: 6000 },
       expenses: [{ type: 'ADMISSION_FEE', amount: 2000 }] },
 
     { name: 'Sara Malik',  fatherName: 'Malik Riaz',    gender: 'FEMALE', dob: '2007-08-22', cnic: '35202-2222222-2', school: 'Beaconhouse',
-      morning: { class: 'ENG-I', fee: 8000 } },
+      enrollment: { class: 'ENG-I', fee: 8000 } },
 
     { name: 'Hamza Tariq', fatherName: 'Tariq Mehmood', gender: 'MALE',   dob: '2009-03-10', cnic: '35202-3333333-3', school: 'LGS',
-      morning: { class: 'ICS-I', fee: 6000 },
+      enrollment: { class: 'ICS-I', fee: 6000 },
       expenses: [{ type: 'BOOKS', amount: 1200 }] },
   ];
 
@@ -187,16 +187,16 @@ async function main() {
     });
     studentRecs[sd.name] = st;
 
-    // Morning regular + all subjects
-    if (sd.morning) {
-      const cls = mCls[sd.morning.class];
-      await prisma.morningEnrollment.upsert({
+    // Enrollment + all subjects
+    if (sd.enrollment) {
+      const cls = mCls[sd.enrollment.class];
+      await prisma.enrollment.upsert({
         where: { studentId: st.id },
-        update: {}, create: { studentId: st.id, morningClassId: cls.id, monthlyFee: sd.morning.fee },
+        update: {}, create: { studentId: st.id, classId: cls.id, monthlyFee: sd.enrollment.fee },
       });
       for (const sn of subjectNames) {
-        const subj = mSubj[`${sd.morning.class}::${sn}`];
-        await prisma.morningStudentSubject.upsert({
+        const subj = mSubj[`${sd.enrollment.class}::${sn}`];
+        await prisma.studentSubject.upsert({
           where: { studentId_subjectId: { studentId: st.id, subjectId: subj.id } },
           update: {}, create: { studentId: st.id, subjectId: subj.id },
         });
@@ -217,26 +217,26 @@ async function main() {
   console.log('✓ Students created:', Object.keys(studentRecs).length);
 
   // ── Exams + Marks (idempotent by title) ────────────────────────────────────
-  const ensureMorningExam = async (title, data, marks) => {
-    let exam = await prisma.morningExam.findFirst({ where: { title } });
-    if (!exam) exam = await prisma.morningExam.create({ data: { title, ...data, createdBy: adminId } });
+  const ensureExam = async (title, data, marks) => {
+    let exam = await prisma.exam.findFirst({ where: { title } });
+    if (!exam) exam = await prisma.exam.create({ data: { title, ...data, createdBy: adminId } });
     for (const m of marks) {
-      await prisma.morningMark.upsert({
+      await prisma.mark.upsert({
         where: { examId_studentId: { examId: exam.id, studentId: m.student.id } },
         update: {}, create: { examId: exam.id, studentId: m.student.id, obtainedMarks: m.obt, grade: calcGrade(m.obt, data.totalMarks), remarks: m.remarks, gradedBy: adminId },
       });
     }
   };
 
-  await ensureMorningExam('Mathematics Monthly Test', {
-    examType: 'MONTHLY_TEST', morningClassId: mCls['ICS-I'].id, subjectId: mSubj['ICS-I::Mathematics'].id,
+  await ensureExam('Mathematics Monthly Test', {
+    examType: 'MONTHLY_TEST', classId: mCls['ICS-I'].id, subjectId: mSubj['ICS-I::Mathematics'].id,
     totalMarks: 50, passingMarks: 25, scheduledDate: new Date('2026-04-05'),
   }, [
     { student: studentRecs['Ali Ahmed'],  obt: 38, remarks: 'Well done' },
     { student: studentRecs['Hamza Tariq'], obt: 22, remarks: 'Needs improvement' },
   ]);
-  await ensureMorningExam('English Weekly Quiz', {
-    examType: 'QUIZ', morningClassId: mCls['ENG-I'].id, subjectId: mSubj['ENG-I::English'].id,
+  await ensureExam('English Weekly Quiz', {
+    examType: 'QUIZ', classId: mCls['ENG-I'].id, subjectId: mSubj['ENG-I::English'].id,
     totalMarks: 20, passingMarks: 10, scheduledDate: new Date('2026-04-10'),
   }, [
     { student: studentRecs['Sara Malik'], obt: 17, remarks: 'Excellent' },

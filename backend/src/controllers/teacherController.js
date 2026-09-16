@@ -8,7 +8,7 @@ const {parseId, parseIds} = require('../utils/helpers');
 
 // Include shape for fetching a teacher's subject assignments
 const teacherSubjectInclude = {
-    morningSubjects: {
+    subjects: {
         include: {
             subject: {
                 include: {classes: {select: {id: true, name: true}}}
@@ -17,7 +17,7 @@ const teacherSubjectInclude = {
     }
 };
 
-// Maps raw teacher (with morningSubjects) to UI-expected shape:
+// Maps raw teacher (with subjects) to UI-expected shape:
 //   teacher.classes        → [{ classId, class: { id, name } }]
 //   teacher.teacherSubjects → [{ subjectId, subject: { classId, name } }]
 // A subject can now span multiple classes, so each subject-class pair the
@@ -26,7 +26,7 @@ function mapTeacher(t) {
     const teacherSubjects = [];
     const classMap = new Map();
 
-    (t.morningSubjects || []).forEach(ms => {
+    (t.subjects || []).forEach(ms => {
         const subjectClasses = ms.subject.classes || [];
         if (subjectClasses.length === 0) {
             // Subject isn't linked to any class yet — still surface the assignment
@@ -57,25 +57,25 @@ async function applyClassAssignments(teacherId, classAssignments, {replaceExisti
         // Still clear existing assignments if replacing
         if (replaceExisting) {
             const tid = parseId(teacherId);
-            await prisma.morningSubjectTeacher.deleteMany({where: {teacherId: tid}});
+            await prisma.subjectTeacher.deleteMany({where: {teacherId: tid}});
         }
         return;
     }
 
     const tid = parseId(teacherId);
-    const morningEntries = [];
+    const entries = [];
 
     for (const {subjectIds = []} of classAssignments) {
         const parsedSubjectIds = parseIds(subjectIds);
         for (const subjectId of parsedSubjectIds) {
-            morningEntries.push({subjectId, teacherId: tid});
+            entries.push({subjectId, teacherId: tid});
         }
     }
 
     // Check for subjects already assigned to a DIFFERENT teacher BEFORE any writes
-    if (morningEntries.length > 0) {
-        const subjectIds = [...new Set(morningEntries.map(e => e.subjectId))];
-        const conflicts = await prisma.morningSubjectTeacher.findMany({
+    if (entries.length > 0) {
+        const subjectIds = [...new Set(entries.map(e => e.subjectId))];
+        const conflicts = await prisma.subjectTeacher.findMany({
             where: {subjectId: {in: subjectIds}, teacherId: {not: tid}},
             include: {
                 teacher: {select: {name: true}},
@@ -93,10 +93,10 @@ async function applyClassAssignments(teacherId, classAssignments, {replaceExisti
 
     // All conflict checks passed — delete old assignments (if replacing), then write new ones
     if (replaceExisting) {
-        await prisma.morningSubjectTeacher.deleteMany({where: {teacherId: tid}});
+        await prisma.subjectTeacher.deleteMany({where: {teacherId: tid}});
     }
-    if (morningEntries.length > 0) {
-        await prisma.morningSubjectTeacher.createMany({data: morningEntries, skipDuplicates: true});
+    if (entries.length > 0) {
+        await prisma.subjectTeacher.createMany({data: entries, skipDuplicates: true});
     }
 }
 
@@ -306,7 +306,7 @@ const getTeacherClasses = catchAsync(async (req, res) => {
     const teacherId = req.user.teacher?.id;
     if (!teacherId) throw new AppError(400, {message: 'Teacher profile not found'});
 
-    const rows = await prisma.morningSubjectTeacher.findMany({
+    const rows = await prisma.subjectTeacher.findMany({
         where: {teacherId},
         include: {
             subject: {

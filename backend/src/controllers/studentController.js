@@ -26,7 +26,7 @@ const getAllStudents = catchAsync(async (req, res) => {
   }
 
   if (classId) {
-    conditions.push({ morningEnrollment: { morningClassId: classId } });
+    conditions.push({ enrollment: { classId: classId } });
   }
 
   if (conditions.length > 0) {
@@ -37,7 +37,7 @@ const getAllStudents = catchAsync(async (req, res) => {
     prisma.student.findMany({
       where,
       include: {
-        morningEnrollment: { include: { morningClass: { select: { id: true, name: true } } } }
+        enrollment: { include: { class: { select: { id: true, name: true } } } }
       },
       orderBy: { createdAt: 'desc' },
       skip,
@@ -48,7 +48,7 @@ const getAllStudents = catchAsync(async (req, res) => {
 
   const mapped = students.map(s => {
     const { password: _pw, ...rest } = s;
-    const primaryClass = s.morningEnrollment?.morningClass || null;
+    const primaryClass = s.enrollment?.class || null;
     return { ...rest, class: primaryClass };
   });
 
@@ -66,18 +66,18 @@ const getStudentById = catchAsync(async (req, res) => {
   const student = await prisma.student.findUnique({
     where: { id: studentId },
     include: {
-      morningEnrollment: { include: { morningClass: { select: { id: true, name: true } } } },
-      morningSubjects: { include: { subject: { select: { classes: { select: { id: true } } } } } }
+      enrollment: { include: { class: { select: { id: true, name: true } } } },
+      subjects: { include: { subject: { select: { classes: { select: { id: true } } } } } }
     }
   });
 
   if (!student) throw new AppError(404, 'Student not found');
 
-  // Morning regular enrollment
-  const morningRegularClassId = student.morningEnrollment?.morningClassId || null;
-  const morningRegularSubjectEnrollments = student.morningEnrollment
-    ? student.morningSubjects
-        .filter(ms => ms.subject.classes.some(c => c.id === student.morningEnrollment.morningClassId))
+  // Regular class enrollment
+  const regularClassId = student.enrollment?.classId || null;
+  const regularSubjectEnrollments = student.enrollment
+    ? student.subjects
+        .filter(ms => ms.subject.classes.some(c => c.id === student.enrollment.classId))
         .map(ms => ({ subjectId: ms.subjectId }))
     : [];
 
@@ -85,9 +85,9 @@ const getStudentById = catchAsync(async (req, res) => {
 
   const responseStudent = {
     ...studentWithoutPassword,
-    morningRegularClassId,
-    morningRegularSubjectEnrollments,
-    monthlyFee: student.morningEnrollment?.monthlyFee ?? null
+    regularClassId,
+    regularSubjectEnrollments,
+    monthlyFee: student.enrollment?.monthlyFee ?? null
   };
 
   res.json({ student: responseStudent });
@@ -96,7 +96,7 @@ const getStudentById = catchAsync(async (req, res) => {
 const createStudent = catchAsync(async (req, res) => {
   const {
     name, fatherName, dateOfBirth, gender, cnic, address, phone, guardianPhone, schoolName,
-    morningRegularClassId, morningRegularSubjectEnrollments = [],
+    regularClassId, regularSubjectEnrollments = [],
     monthlyFee, registrationFee,
     joiningDate, academicYear, status, password, email, rollNumber: customRollNumber,
   } = req.body;
@@ -105,14 +105,14 @@ const createStudent = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'Required fields are missing.' });
   }
 
-  const morningClassId = morningRegularClassId || null;
+  const classId = regularClassId || null;
 
-  if (!morningClassId) {
+  if (!classId) {
     throw new AppError(400, { message: 'A class must be selected.' });
   }
 
-  // Morning subject data (no per-subject fee for morning)
-  const allMorningSubjectsData = morningRegularSubjectEnrollments.map(se => ({
+  // Subject data (no per-subject fee)
+  const allSubjectsData = regularSubjectEnrollments.map(se => ({
     subjectId: se.subjectId,
   }));
 
@@ -133,17 +133,17 @@ const createStudent = catchAsync(async (req, res) => {
       joiningDate: new Date(joiningDate),
       academicYear: academicYear || '2025-2026',
       status: status || 'ENROLLED',
-      ...(morningClassId && {
-        morningEnrollment: {
-          create: { morningClassId: morningClassId, monthlyFee: monthlyFee ? parseFloat(monthlyFee) : 0 }
+      ...(classId && {
+        enrollment: {
+          create: { classId: classId, monthlyFee: monthlyFee ? parseFloat(monthlyFee) : 0 }
         }
       }),
-      ...(allMorningSubjectsData.length > 0 && {
-        morningSubjects: { createMany: { data: allMorningSubjectsData, skipDuplicates: true } }
+      ...(allSubjectsData.length > 0 && {
+        subjects: { createMany: { data: allSubjectsData, skipDuplicates: true } }
       }),
     },
     include: {
-      morningEnrollment: { include: { morningClass: true } }
+      enrollment: { include: { class: true } }
     }
   });
 
@@ -162,7 +162,7 @@ const updateStudent = catchAsync(async (req, res) => {
   const studentId = parseInt(id, 10); // ensure Int for Prisma data payloads
   const {
     name, fatherName, dateOfBirth, gender, cnic, address, phone, guardianPhone, schoolName,
-    morningRegularClassId, morningRegularSubjectEnrollments,
+    regularClassId, regularSubjectEnrollments,
     monthlyFee, registrationFee,
     joiningDate, academicYear, status, rollNumber, password, email
   } = req.body;
@@ -194,36 +194,36 @@ const updateStudent = catchAsync(async (req, res) => {
   const { password: _pw, ...studentWithoutPassword } = student;
 
   // Rebuild enrollment if any class-related field was sent
-  if (morningRegularClassId !== undefined) {
-    const morningClassId = morningRegularClassId ? parseInt(morningRegularClassId, 10) : null;
+  if (regularClassId !== undefined) {
+    const classId = regularClassId ? parseInt(regularClassId, 10) : null;
 
-    const morningSubs = morningRegularSubjectEnrollments || [];
-    // Morning has no per-subject fee — just track subject enrollment
-    const allMorningSubjectsData = morningClassId ? morningSubs.map(se => ({
+    const subs = regularSubjectEnrollments || [];
+    // No per-subject fee — just track subject enrollment
+    const allSubjectsData = classId ? subs.map(se => ({
       studentId, subjectId: parseInt(se.subjectId, 10),
     })) : [];
 
     // Delete all existing subject enrollments
-    await prisma.morningStudentSubject.deleteMany({ where: { studentId } });
+    await prisma.studentSubject.deleteMany({ where: { studentId } });
 
-    // Rebuild morning enrollment
-    if (morningClassId) {
-      await prisma.morningEnrollment.upsert({
+    // Rebuild enrollment
+    if (classId) {
+      await prisma.enrollment.upsert({
         where: { studentId },
-        update: { morningClassId, isActive: true, ...(monthlyFee != null && monthlyFee !== '' ? { monthlyFee: parseFloat(monthlyFee) } : {}) },
-        create: { studentId, morningClassId, monthlyFee: monthlyFee != null && monthlyFee !== '' ? parseFloat(monthlyFee) : 0 }
+        update: { classId, isActive: true, ...(monthlyFee != null && monthlyFee !== '' ? { monthlyFee: parseFloat(monthlyFee) } : {}) },
+        create: { studentId, classId, monthlyFee: monthlyFee != null && monthlyFee !== '' ? parseFloat(monthlyFee) : 0 }
       });
     } else {
-      await prisma.morningEnrollment.updateMany({ where: { studentId }, data: { isActive: false } });
+      await prisma.enrollment.updateMany({ where: { studentId }, data: { isActive: false } });
     }
 
     // Recreate subjects
-    if (allMorningSubjectsData.length > 0) {
-      await prisma.morningStudentSubject.createMany({ data: allMorningSubjectsData, skipDuplicates: true });
+    if (allSubjectsData.length > 0) {
+      await prisma.studentSubject.createMany({ data: allSubjectsData, skipDuplicates: true });
     }
   } else if (monthlyFee != null && monthlyFee !== '') {
     // Only fee update
-    await prisma.morningEnrollment.updateMany({
+    await prisma.enrollment.updateMany({
       where: { studentId, isActive: true },
       data: { monthlyFee: parseFloat(monthlyFee) }
     });
@@ -247,8 +247,8 @@ const deleteStudent = catchAsync(async (req, res) => {
 const getStudentsByClass = catchAsync(async (req, res) => {
   const { classId } = req.params;
 
-  const enrollments = await prisma.morningEnrollment.findMany({
-    where: { morningClassId: classId, isActive: true },
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: classId, isActive: true },
     include: { student: true },
     orderBy: { student: { name: 'asc' } }
   });

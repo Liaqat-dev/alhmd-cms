@@ -15,20 +15,20 @@ const studentInclude = {
         fatherName: true,
         academicYear: true,
         status: true,
-        morningEnrollment: {include: {morningClass: {select: {id: true, name: true}}}}
+        enrollment: {include: {class: {select: {id: true, name: true}}}}
     }
 };
 
 // Normalizes a report row so student.class is a flat { id, name } object (UI expects this shape)
 function mapReport(report) {
     const {student, ...rest} = report;
-    const classObj = student.morningEnrollment?.morningClass;
+    const classObj = student.enrollment?.class;
     return {...rest, student: {...student, class: classObj || null}};
 }
 
 // Computes attendance stats for a student in a date range
 async function getAttendanceStats(studentId, startDate, endDate) {
-    const attendances = await prisma.morningAttendance.findMany({
+    const attendances = await prisma.attendance.findMany({
         where: {
             studentId,
             date: {gte: startDate, lte: endDate}
@@ -46,7 +46,7 @@ async function getAttendanceStats(studentId, startDate, endDate) {
 
 // Computes marks stats for a student in a date range
 async function getMarksStats(studentId, startDate, endDate) {
-    const marks = await prisma.morningMark.findMany({
+    const marks = await prisma.mark.findMany({
         where: {studentId, exam: {scheduledDate: {gte: startDate, lte: endDate}}},
         include: {exam: {include: {subject: {select: {id: true, name: true}}}}}
     });
@@ -63,7 +63,7 @@ async function getMarksStats(studentId, startDate, endDate) {
 }
 
 // Builds subject-wise details from ALL class exams in the period.
-// allExams: every exam held for the class that month (MorningExam[])
+// allExams: every exam held for the class that month (Exam[])
 // marksMap: Map<examId, markRow> — only the student's submitted marks
 // Attendance is now recorded per class (not per subject), so it's reported
 // once at the top level (see getAttendanceStats) rather than broken out here.
@@ -112,13 +112,13 @@ function buildSubjectDetails(allExams, marksMap) {
 // Fetches all exams held for a student's class in a date range and returns
 // subject details combining every exam with the student's marks (if any).
 async function fetchSubjectDetails(studentId, startDate, endDate, enrolledStudent) {
-    const classId = enrolledStudent.morningEnrollment?.morningClassId;
+    const classId = enrolledStudent.enrollment?.classId;
 
     if (!classId) return [];
 
     // All exams held for the class in this period
-    const allExams = await prisma.morningExam.findMany({
-        where: {morningClassId: classId, scheduledDate: {gte: startDate, lte: endDate}},
+    const allExams = await prisma.exam.findMany({
+        where: {classId: classId, scheduledDate: {gte: startDate, lte: endDate}},
         include: {subject: {select: {id: true, name: true}}},
         orderBy: [{subjectId: 'asc'}, {scheduledDate: 'asc'}]
     });
@@ -127,7 +127,7 @@ async function fetchSubjectDetails(studentId, startDate, endDate, enrolledStuden
 
     // Student's marks for those exams
     const examIds = allExams.map(e => e.id);
-    const studentMarks = await prisma.morningMark.findMany({
+    const studentMarks = await prisma.mark.findMany({
         where: {
             studentId,
             examId: {in: examIds}
@@ -174,7 +174,7 @@ const generateStudentReport = catchAsync(async (req, res) => {
         generatedBy: req.user.id
     };
 
-    const report = await prisma.morningMonthlyReport.upsert({
+    const report = await prisma.monthlyReport.upsert({
         where: {studentId_month_year: {studentId, month: parseInt(month), year: parseInt(year)}},
         update: reportData,
         create: reportData,
@@ -198,8 +198,8 @@ const generateClassReports = catchAsync(async (req, res) => {
     }
 
     // Get all active students in the class
-    const enrollments = await prisma.morningEnrollment.findMany({
-        where: {morningClassId: classId, isActive: true}, select: {studentId: true}
+    const enrollments = await prisma.enrollment.findMany({
+        where: {classId: classId, isActive: true}, select: {studentId: true}
     });
     const studentIds = enrollments.map(e => e.studentId);
 
@@ -226,7 +226,7 @@ const generateClassReports = catchAsync(async (req, res) => {
                 generatedBy: req.user.id
             };
 
-            await prisma.morningMonthlyReport.upsert({
+            await prisma.monthlyReport.upsert({
                 where: {studentId_month_year: {studentId, month: parseInt(month), year: parseInt(year)}},
                 update: reportData,
                 create: reportData
@@ -250,10 +250,10 @@ const getAllReports = catchAsync(async (req, res) => {
     if (year) where.year = parseInt(year);
     if (studentId) where.studentId = studentId;
     if (classId) {
-        where.student = {morningEnrollment: {morningClassId: classId}};
+        where.student = {enrollment: {classId: classId}};
     }
 
-    const reports = await prisma.morningMonthlyReport.findMany({
+    const reports = await prisma.monthlyReport.findMany({
         where, include: {student: studentInclude}, orderBy: [{year: 'desc'}, {month: 'desc'}, {student: {name: 'asc'}}]
     });
 
@@ -264,7 +264,7 @@ const getAllReports = catchAsync(async (req, res) => {
 const getReportById = catchAsync(async (req, res) => {
     const {id} = req.params;
 
-    const report = await prisma.morningMonthlyReport.findUnique({
+    const report = await prisma.monthlyReport.findUnique({
         where: {id}, include: {student: studentInclude}
     });
     if (!report) throw new AppError(404, 'Report not found');
@@ -297,7 +297,7 @@ const getReportById = catchAsync(async (req, res) => {
 const downloadReportPDF = catchAsync(async (req, res) => {
     const {id} = req.params;
 
-    const report = await prisma.morningMonthlyReport.findUnique({
+    const report = await prisma.monthlyReport.findUnique({
         where: {id}, include: {student: studentInclude}
     });
     if (!report) throw new AppError(404, 'Report not found');
@@ -327,7 +327,7 @@ const getStudentReports = catchAsync(async (req, res) => {
     const studentId = req.user.student?.id || req.params.studentId;
     if (!studentId) throw new AppError(400, {message: 'Student ID required'});
 
-    const reports = await prisma.morningMonthlyReport.findMany({
+    const reports = await prisma.monthlyReport.findMany({
         where: {studentId}, include: {student: studentInclude}, orderBy: [{year: 'desc'}, {month: 'desc'}]
     });
 
@@ -339,7 +339,7 @@ const updateReportRemarks = catchAsync(async (req, res) => {
     const {id} = req.params;
     const {teacherRemarks} = req.body;
 
-    const report = await prisma.morningMonthlyReport.update({
+    const report = await prisma.monthlyReport.update({
         where: {id}, data: {teacherRemarks}, include: {student: studentInclude}
     });
 
@@ -350,9 +350,9 @@ const updateReportRemarks = catchAsync(async (req, res) => {
 const deleteReport = catchAsync(async (req, res) => {
     const {id} = req.params;
 
-    const report = await prisma.morningMonthlyReport.findUnique({where: {id}});
+    const report = await prisma.monthlyReport.findUnique({where: {id}});
     if (!report) throw new AppError(404, 'Report not found');
-    await prisma.morningMonthlyReport.delete({where: {id}});
+    await prisma.monthlyReport.delete({where: {id}});
 
     res.json({message: 'Report deleted successfully'});
 });
@@ -365,9 +365,9 @@ const getClassPerformanceSummary = catchAsync(async (req, res) => {
         throw new AppError(400, {message: 'Class ID, month, and year are required'});
     }
 
-    const studentFilter = {morningEnrollment: {morningClassId: classId}};
+    const studentFilter = {enrollment: {classId: classId}};
 
-    const reports = await prisma.morningMonthlyReport.findMany({
+    const reports = await prisma.monthlyReport.findMany({
         where: {
             student: studentFilter, month: parseInt(month), year: parseInt(year)
         }, include: {student: studentInclude}

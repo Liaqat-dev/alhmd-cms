@@ -34,7 +34,7 @@ const generateAll = catchAsync(async (req, res) => {
 
   for (const teacher of teachers) {
     try {
-      const existing = await prisma.morningSalary.findUnique({
+      const existing = await prisma.salary.findUnique({
         where: { teacherId_month_year: { teacherId: teacher.id, month: parseInt(month), year: parseInt(year) } },
       });
       if (existing) {
@@ -44,7 +44,7 @@ const generateAll = catchAsync(async (req, res) => {
 
       const calc = await getTeacherSalaryFromProfile(teacher.id);
 
-      const salary = await prisma.morningSalary.create({
+      const salary = await prisma.salary.create({
         data: {
           teacherId: teacher.id, month: parseInt(month), year: parseInt(year),
           basicSalary: calc.basicSalary,
@@ -62,7 +62,7 @@ const generateAll = catchAsync(async (req, res) => {
   }
 
   res.json({
-    message: `Generated ${results.length} morning salary records`,
+    message: `Generated ${results.length} salary records`,
     generated: results.length, skipped: errors.length, errors,
   });
 });
@@ -72,14 +72,14 @@ const generateSingle = catchAsync(async (req, res) => {
   const { month, year } = req.body;
   if (!month || !year) throw new AppError(400, { message: 'Month and year are required' });
 
-  const existing = await prisma.morningSalary.findUnique({
+  const existing = await prisma.salary.findUnique({
     where: { teacherId_month_year: { teacherId, month: parseInt(month), year: parseInt(year) } },
   });
   if (existing) throw new AppError(400, { message: 'Salary already generated for this teacher/month/year' });
 
   const calc = await getTeacherSalaryFromProfile(teacherId);
 
-  const salary = await prisma.morningSalary.create({
+  const salary = await prisma.salary.create({
     data: {
       teacherId, month: parseInt(month), year: parseInt(year),
       basicSalary: calc.basicSalary,
@@ -90,7 +90,7 @@ const generateSingle = catchAsync(async (req, res) => {
     include: { teacher: true },
   });
 
-  res.status(201).json({ message: 'Morning salary generated successfully', salary });
+  res.status(201).json({ message: 'Salary generated successfully', salary });
 });
 
 const getAll = catchAsync(async (req, res) => {
@@ -100,7 +100,7 @@ const getAll = catchAsync(async (req, res) => {
   if (year) where.year = parseInt(year);
   if (status) where.status = status;
 
-  const salaries = await prisma.morningSalary.findMany({
+  const salaries = await prisma.salary.findMany({
     where,
     include: { teacher: true },
     orderBy: { createdAt: 'desc' },
@@ -115,7 +115,7 @@ const getStatistics = catchAsync(async (req, res) => {
   if (month) where.month = parseInt(month);
   if (year) where.year = parseInt(year);
 
-  const salaries = await prisma.morningSalary.findMany({ where });
+  const salaries = await prisma.salary.findMany({ where });
 
   const totalPayroll = salaries.reduce((sum, s) => sum + parseFloat(s.totalSalary), 0);
   const generated = salaries.filter(s => s.status === 'GENERATED').length;
@@ -134,7 +134,7 @@ const getTeacherHistory = catchAsync(async (req, res) => {
   if (req.user.role === 'TEACHER' && req.user.teacher?.id !== parseInt(teacherId)) {
     throw new AppError(403, { message: 'Access denied' });
   }
-  const salaries = await prisma.morningSalary.findMany({
+  const salaries = await prisma.salary.findMany({
     where: { teacherId: parseInt(teacherId) },
     include: { teacher: true },
     orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -144,7 +144,7 @@ const getTeacherHistory = catchAsync(async (req, res) => {
 
 const getById = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const salary = await prisma.morningSalary.findUnique({
+  const salary = await prisma.salary.findUnique({
     where: { id },
     include: { teacher: true },
   });
@@ -160,7 +160,7 @@ const updateStatus = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'Status must be APPROVED or PAID' });
   }
 
-  const existing = await prisma.morningSalary.findUnique({ where: { id } });
+  const existing = await prisma.salary.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Salary record not found');
 
   if (status === 'APPROVED' && existing.status !== 'GENERATED') {
@@ -170,7 +170,7 @@ const updateStatus = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'Can only mark APPROVED records as PAID' });
   }
 
-  const salary = await prisma.morningSalary.update({
+  const salary = await prisma.salary.update({
     where: { id },
     data: { status, remarks: remarks || existing.remarks },
     include: { teacher: true },
@@ -179,8 +179,8 @@ const updateStatus = catchAsync(async (req, res) => {
   if (status === 'PAID') {
     await prisma.paymentHistory.create({
       data: {
-        paymentType: 'MORNING_SALARY',
-        morningSalaryId: id,
+        paymentType: 'SALARY',
+        salaryId: id,
         amount: parseFloat(salary.totalSalary),
         paymentMethod: paymentMethod || 'CASH',
         previousBalance: parseFloat(salary.totalSalary),
@@ -195,12 +195,12 @@ const updateStatus = catchAsync(async (req, res) => {
 
 const deleteSalary = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const existing = await prisma.morningSalary.findUnique({ where: { id } });
+  const existing = await prisma.salary.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Salary record not found');
   if (existing.status !== 'GENERATED') {
     throw new AppError(400, { message: 'Can only delete records with GENERATED status' });
   }
-  await prisma.morningSalary.delete({ where: { id } });
+  await prisma.salary.delete({ where: { id } });
   res.json({ message: 'Salary record deleted successfully' });
 });
 
