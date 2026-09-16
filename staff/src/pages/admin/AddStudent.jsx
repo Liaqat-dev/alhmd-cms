@@ -11,6 +11,7 @@ import {
     Building2,
     Calendar,
     CreditCard,
+    FileText,
     GraduationCap,
     Hash,
     Loader2,
@@ -26,6 +27,7 @@ import {
 import useAppForm from '@/hooks/useAppForm'
 import {FormDate, FormField, FormSelect, ServerError} from '@/components/ui/form-fields'
 import {Tabs, Tab} from '@/components/custom/Tab'
+import StudentDocuments from '@/components/shared/StudentDocuments'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -767,6 +769,14 @@ export default function AddStudent() {
         </div>
     )
 
+    const documentsTab = isEditing ? (
+        <StudentDocuments studentId={id}/>
+    ) : (
+        <p className="text-sm text-gray-400 dark:text-dark-500 text-center py-8 rounded-lg border border-dashed border-gray-200 dark:border-dark-700">
+            Save the student first, then come back here to upload documents.
+        </p>
+    )
+
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
@@ -823,6 +833,9 @@ export default function AddStudent() {
                                 </Tab>
                                 <Tab label="Expenses" icon={<CreditCard className="h-3.5 w-3.5"/>}>
                                     {expensesTab}
+                                </Tab>
+                                <Tab label="Documents" icon={<FileText className="h-3.5 w-3.5"/>}>
+                                    {documentsTab}
                                 </Tab>
                             </Tabs>
                         </div>

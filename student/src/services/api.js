@@ -115,6 +115,8 @@ export const studentsAPI = {
   update: (id, data) => api.put(`/students/${id}`, data),
   delete: (id) => api.delete(`/students/${id}`),
   getByClass: (classId) => api.get(`/students/class/${classId}`),
+  getDocuments: (id) => api.get(`/students/${id}/documents`),
+  getDocumentFile: (id, docId) => api.get(`/students/${id}/documents/${docId}/file`, { responseType: 'blob' }),
 }
 
 // Teachers API
