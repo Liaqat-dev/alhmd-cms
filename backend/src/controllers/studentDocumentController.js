@@ -35,16 +35,16 @@ const uploadStudentDocument = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'A file is required' });
   }
 
-  const student = await prisma.student.findUnique({ where: { id: studentId }, select: { id: true, rollNumber: true } });
+  const student = await prisma.student.findUnique({ where: { id: studentId }, select: { id: true, rollNumber: true, academicYear: true } });
   if (!student) throw new AppError(404, 'Student not found');
 
   const existing = await prisma.studentDocument.findUnique({
     where: { studentId_type: { studentId, type } },
   });
 
-  const folderId = await getOrCreateStudentFolder(student.rollNumber);
+  const folderId = await getOrCreateStudentFolder(student.rollNumber, student.academicYear);
   const ext = (req.file.originalname.match(/\.[^.]+$/) || [''])[0];
-  const fileName = `${type}${ext}`;
+  const fileName = `${type}_${student.rollNumber}${ext}`;
 
   const uploaded = await uploadFile({
     buffer: req.file.buffer,

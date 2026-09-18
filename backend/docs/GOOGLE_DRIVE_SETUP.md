@@ -1,8 +1,13 @@
 # Google Drive Setup — Student Documents
 
 The student document upload feature (Photo, B-Form/CNIC, Father's CNIC, Matric
-Result Card) stores files in Google Drive via a service account. This is not
-configured yet — follow these steps when you're ready to enable it.
+Result Card) stores files in Google Drive.
+
+**Note:** a service-account approach was tried first but doesn't work for a
+personal Gmail account — service accounts have no storage quota on a regular
+"My Drive" (only on Shared Drives, which require Google Workspace). Since the
+account here is a personal Gmail, the app instead authenticates as **you**
+via OAuth2, using a refresh token generated once.
 
 ## 1. Create a Google Cloud project
 
@@ -13,42 +18,59 @@ a new project (or use an existing one).
 
 **APIs & Services → Library** → search for **Google Drive API** → **Enable**.
 
-## 3. Create a service account
+## 3. Configure the OAuth consent screen
 
-**APIs & Services → Credentials → Create Credentials → Service Account**.
-Give it any name, e.g. `cms-drive-uploader`. No special roles are needed at
-the project level — access is granted via the shared Drive folder in step 5.
+**APIs & Services → OAuth consent screen**:
+- User type: **External**
+- App name / support email: anything (e.g. "CMS Document Uploader")
+- Scopes: none needed here (the script requests `drive.file` directly)
+- Test users: add the Gmail account that owns the Drive documents will be
+  stored in
 
-## 4. Create and download a JSON key
+Leave the app in **Testing** status — that's fine for this scope. (Testing
+apps normally get a 7-day refresh token expiry, but that 7-day limit only
+applies to *sensitive/restricted* scopes; `drive.file` is a non-sensitive
+scope, so the token doesn't expire.)
 
-Open the service account you just created → **Keys** tab → **Add Key →
-Create new key → JSON**. This downloads a `.json` file — keep it private,
-never commit it to git.
+## 4. Create an OAuth client ID
 
-## 5. Share a Drive folder with the service account
+**APIs & Services → Credentials → Create Credentials → OAuth client ID**:
+- Application type: **Desktop app**
+- Name: anything
 
-1. In your own Google Drive, create a folder (e.g. "Student Documents").
-2. Share it with the service account's email — it looks like
-   `cms-drive-uploader@your-project-id.iam.gserviceaccount.com` (find it
-   inside the downloaded JSON key as `client_email`).
-3. Give it **Editor** access.
-4. Open the folder and copy its ID from the URL:
-   `https://drive.google.com/drive/folders/<THIS_PART_IS_THE_FOLDER_ID>`
+This gives you a **Client ID** and **Client Secret** — copy both.
 
-Every student gets their own subfolder (named after their roll number)
-created automatically under this root folder on first upload.
-
-## 6. Set environment variables
+## 5. Set the client credentials
 
 In `backend/.env`:
 
 ```
-GOOGLE_SERVICE_ACCOUNT_KEY=<paste the entire downloaded JSON as one line>
-GOOGLE_DRIVE_ROOT_FOLDER_ID=<the folder ID from step 5>
+GOOGLE_OAUTH_CLIENT_ID=<your client id>
+GOOGLE_OAUTH_CLIENT_SECRET=<your client secret>
 ```
 
-`GOOGLE_SERVICE_ACCOUNT_KEY` is the full `{...}` JSON object from the
-downloaded key file, pasted as a single-line string value.
+## 6. Run the one-time authorization script
+
+```
+cd backend
+node scripts/getGoogleDriveToken.js
+```
+
+It prints a Google sign-in URL — open it in your browser, sign in with the
+Gmail account that should own the documents, and grant access. The script
+then:
+- exchanges the authorization code for a refresh token
+- creates a **"Student Documents"** folder in that Drive account (the app
+  can only access folders it creates itself under this scope — a
+  pre-existing folder ID won't work)
+- prints both values to add to `.env`:
+
+```
+GOOGLE_OAUTH_REFRESH_TOKEN=<printed value>
+GOOGLE_DRIVE_ROOT_FOLDER_ID=<printed value>
+```
+
+Paste those into `backend/.env`.
 
 ## 7. Restart the backend
 
@@ -58,8 +80,14 @@ npm run dev
 ```
 
 Uploading a document from the staff **Add/Edit Student → Documents** tab
-will now create a per-student folder under your shared root folder and
-store files there.
+will now create a per-student subfolder (named after their roll number)
+inside "Student Documents" and store files there.
+
+## Cleanup
+
+An earlier attempt created a service account (`alahamd-cms-upload@...`) that
+is no longer used — safe to delete it under **APIs & Services → Credentials**
+in the Google Cloud Console if you want to tidy up.
 
 ## Reference — what was built
 
@@ -67,9 +95,11 @@ store files there.
   `CNIC_BACK`, `FATHER_CNIC_FRONT`, `FATHER_CNIC_BACK`, `MATRIC_RESULT`) and
   a `StudentDocument` model — one row per type per student
   (`@@unique([studentId, type])`, so re-uploading a type replaces it).
-- **`backend/src/utils/googleDrive.js`** — service-account auth,
+- **`backend/src/utils/googleDrive.js`** — OAuth2 auth (refresh token),
   `getOrCreateStudentFolder(rollNumber)`, `uploadFile`, `deleteFile`,
   `getFileStream`.
+- **`backend/scripts/getGoogleDriveToken.js`** — one-time script to obtain
+  the refresh token and create the root Drive folder (step 6 above).
 - **`backend/src/controllers/studentDocumentController.js`** —
   list/upload/delete/stream-download.
 - **Routes** (`backend/src/routes/students.js`):

@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react'
 import {studentsAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {
-    CheckCircle2, Eye, FileText, IdCard, Image as ImageIcon,
+    CheckCircle2, Download, Eye, FileText, IdCard, Image as ImageIcon,
     Loader2, Trash2, Upload, UserSquare2,
 } from 'lucide-react'
 
@@ -29,6 +29,7 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
     const [uploading, setUploading] = useState(false)
     const [removing, setRemoving] = useState(false)
     const [viewing, setViewing] = useState(false)
+    const [downloading, setDownloading] = useState(false)
 
     const handleFile = async (e) => {
         const file = e.target.files?.[0]
@@ -78,6 +79,24 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
         }
     }
 
+    const handleDownload = async () => {
+        if (!doc) return
+        setDownloading(true)
+        try {
+            const res = await studentsAPI.getDocumentFile(studentId, doc.id)
+            const url = window.URL.createObjectURL(res.data)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = doc.fileName
+            link.click()
+            window.URL.revokeObjectURL(url)
+        } catch {
+            toast({variant: 'destructive', title: 'Failed to download document'})
+        } finally {
+            setDownloading(false)
+        }
+    }
+
     const busy = uploading || removing
 
     return (
@@ -109,6 +128,15 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
                         title="View"
                     >
                         {viewing ? <Loader2 className="h-4 w-4 animate-spin"/> : <Eye className="h-4 w-4"/>}
+                    </button>
+                )}
+                {doc && (
+                    <button
+                        type="button" onClick={handleDownload} disabled={busy || downloading}
+                        className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
+                        title="Download"
+                    >
+                        {downloading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}
                     </button>
                 )}
                 <button

@@ -3,16 +3,20 @@ const { Readable } = require('stream');
 
 const ROOT_FOLDER_ID = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID;
 
-// GOOGLE_SERVICE_ACCOUNT_KEY holds the full service-account JSON key as a
-// single-line string env var (paste the downloaded key's contents as-is).
+// Service accounts have no storage quota on a personal Google Drive (only on
+// Shared Drives, a Workspace-only feature) — so uploads authenticate as the
+// actual Drive owner via OAuth2 instead. GOOGLE_OAUTH_REFRESH_TOKEN is
+// generated once via scripts/getGoogleDriveToken.js (see docs/GOOGLE_DRIVE_SETUP.md).
 function getAuth() {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!raw) throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not configured');
-  const credentials = JSON.parse(raw);
-  return new google.auth.GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error('Google Drive OAuth credentials are not configured (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET / GOOGLE_OAUTH_REFRESH_TOKEN)');
+  }
+  const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  return oauth2Client;
 }
 
 function getDrive() {
@@ -20,17 +24,14 @@ function getDrive() {
 }
 
 /**
- * Finds the student's folder (named after their roll number) under the
- * configured root folder, creating it if it doesn't exist yet.
+ * Finds a folder by exact name under a given parent, creating it if it
+ * doesn't exist yet.
  * @returns {Promise<string>} the folder's Drive file id
  */
-async function getOrCreateStudentFolder(rollNumber) {
-  if (!ROOT_FOLDER_ID) throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
-  const drive = getDrive();
-
-  const safeName = rollNumber.replace(/'/g, "\\'");
+async function getOrCreateFolder(drive, name, parentId) {
+  const safeName = name.replace(/'/g, "\\'");
   const existing = await drive.files.list({
-    q: `name = '${safeName}' and '${ROOT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    q: `name = '${safeName}' and '${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
     fields: 'files(id, name)',
     spaces: 'drive',
   });
@@ -40,13 +41,27 @@ async function getOrCreateStudentFolder(rollNumber) {
 
   const created = await drive.files.create({
     requestBody: {
-      name: rollNumber,
+      name,
       mimeType: 'application/vnd.google-apps.folder',
-      parents: [ROOT_FOLDER_ID],
+      parents: [parentId],
     },
     fields: 'id',
   });
   return created.data.id;
+}
+
+/**
+ * Finds the student's folder (named after their roll number), nested under
+ * an academic-year folder under the configured root folder — creating
+ * either level that doesn't exist yet.
+ * @returns {Promise<string>} the roll-number folder's Drive file id
+ */
+async function getOrCreateStudentFolder(rollNumber, academicYear) {
+  if (!ROOT_FOLDER_ID) throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
+  const drive = getDrive();
+
+  const yearFolderId = await getOrCreateFolder(drive, academicYear || 'Unassigned', ROOT_FOLDER_ID);
+  return getOrCreateFolder(drive, rollNumber, yearFolderId);
 }
 
 /**
