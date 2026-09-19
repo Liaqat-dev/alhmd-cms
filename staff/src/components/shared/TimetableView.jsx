@@ -164,7 +164,7 @@ export default function TimetableView({title = 'My Timetable', classId = null}) 
                         })}
                     </div>
 
-                    {/* Period list */}
+                    {/* Lecture list */}
                     <div className="p-5">
                         {activeEntries.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-10 gap-2">
@@ -176,7 +176,7 @@ export default function TimetableView({title = 'My Timetable', classId = null}) 
                         ) : (
                             <div className="space-y-0">
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pb-4">
-                                    {DAY_FULL[activeDay]} · {activeEntries.length} {activeEntries.length === 1 ? 'period' : 'periods'}
+                                    {DAY_FULL[activeDay]} · {activeEntries.length} {activeEntries.length === 1 ? 'lecture' : 'lectures'}
                                 </p>
                                 {activeEntries.map((entry, idx) => {
                                     const duration = getDuration(entry.startTime, entry.endTime)
@@ -196,7 +196,7 @@ export default function TimetableView({title = 'My Timetable', classId = null}) 
                                                 )}
                                             </div>
 
-                                            {/* Period card */}
+                                            {/* Lecture card */}
                                             <div className={`flex-1 rounded-xl border p-4 mb-2.5 transition-colors cursor-default
                         ${isCurrentDay
                                                 ? 'border-primary/15 bg-primary/[0.025] hover:bg-primary/[0.05]'

@@ -241,7 +241,7 @@ function ClassTimetableTab() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="text-lg">
-                            {editingEntry ? 'Edit Period' : 'Add Period'} - {selectedClass?.name}
+                            {editingEntry ? 'Edit Lecture' : 'Add Lecture'} - {selectedClass?.name}
                         </DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -295,7 +295,7 @@ function ClassTimetableTab() {
                         </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit">{editingEntry ? 'Update' : 'Add'} Period</Button>
+                            <Button type="submit">{editingEntry ? 'Update' : 'Add'} Lecture</Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
