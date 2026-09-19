@@ -232,7 +232,6 @@ export default function AdminSubjects() {
                             <TableHeader>
                                 <TableRow className="bg-muted/40">
                                     <TableHead className="font-semibold">Subject Name</TableHead>
-                                    <TableHead className="font-semibold">Grade Level</TableHead>
                                     <TableHead className="font-semibold">Classes</TableHead>
                                     <TableHead className="font-semibold">Students</TableHead>
                                     <TableHead className="font-semibold">Actions</TableHead>
@@ -243,15 +242,14 @@ export default function AdminSubjects() {
                                     <TableRow key={subject.id} className="hover:bg-muted/30 transition-colors">
                                         <TableCell>
                                             <div className="flex items-center gap-2">
-                                                <BookOpen className="h-3.5 w-3.5 text-emerald-500"/>
-                                                <span className="font-medium">{subject.name}</span>
+                                                <BookOpen className="h-3.5 w-3.5 text-emerald-500 shrink-0"/>
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium">{subject.name}</span>
+                                                    <span className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-dark-500">
+                                                        {(GRADE_LEVEL_LABELS[subject.gradeLevel] || subject.gradeLevel).toUpperCase()}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                          <span
-                              className="inline-flex items-center rounded-md bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/10 px-2 py-0.5 text-xs font-medium">
-                            {GRADE_LEVEL_LABELS[subject.gradeLevel] || subject.gradeLevel}
-                          </span>
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-wrap gap-1 max-w-[240px]">

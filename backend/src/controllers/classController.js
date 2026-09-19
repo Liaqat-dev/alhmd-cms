@@ -44,7 +44,6 @@ const getAllClassesNoBatch = catchAsync(async (req, res) => {
 
   const mapped = classes.map(c => ({
     ...c,
-    monthlyFee: null,
     teachers: collectTeachers(c.subjects),
     _count: { students: c._count.enrollments, enrollments: c._count.enrollments }
   }));
@@ -71,7 +70,6 @@ const getAllClasses = catchAsync(async (req, res) => {
 
   const mapped = classes.map(c => ({
     ...c,
-    monthlyFee: null,
     teachers: collectTeachers(c.subjects),
     _count: { students: c._count.enrollments, enrollments: c._count.enrollments }
   }));
@@ -104,8 +102,7 @@ const getClassById = catchAsync(async (req, res) => {
   res.json({
     class: {
       ...classData,
-      monthlyFee: null,
-      students,
+        students,
       teachers,
       _count: { students: classData._count.enrollments, enrollments: classData._count.enrollments }
     }
@@ -137,7 +134,6 @@ const createClass = catchAsync(async (req, res) => {
 
   const response = {
     ...newClass,
-    monthlyFee: null,
     teachers: collectTeachers(newClass.subjects),
     _count: { students: newClass._count.enrollments, enrollments: newClass._count.enrollments }
   };
@@ -169,7 +165,6 @@ const updateClass = catchAsync(async (req, res) => {
 
   const response = {
     ...updatedClass,
-    monthlyFee: null,
     teachers: collectTeachers(updatedClass.subjects),
     _count: { students: updatedClass._count.enrollments, enrollments: updatedClass._count.enrollments }
   };

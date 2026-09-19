@@ -36,9 +36,6 @@ const classSchema = Yup.object({
     name: Yup.string().trim().required('Class name is required'),
     gradeLevel: Yup.string().required('Grade level is required'),
     program: Yup.string().required('Program is required'),
-    monthlyFee: Yup.number()
-        .typeError('Fee must be a number')
-        .min(0, 'Fee cannot be negative'),
     studentLimit: Yup.number()
         .typeError('Must be a number')
         .min(1, 'At least 1 student required')
@@ -49,7 +46,6 @@ const EMPTY_VALUES = {
     name: '',
     gradeLevel: 'GRADE_11',
     program: 'ICS',
-    monthlyFee: '',
     studentLimit: 35,
 }
 
@@ -75,7 +71,6 @@ export default function AdminClasses() {
                     name: values.name,
                     gradeLevel: values.gradeLevel,
                     program: values.program,
-                    monthlyFee: values.monthlyFee,
                     studentLimit: values.studentLimit,
                 })
                 return 'edit'
@@ -103,7 +98,6 @@ export default function AdminClasses() {
                 name: editingClass.name,
                 gradeLevel: editingClass.gradeLevel || 'GRADE_11',
                 program: editingClass.program || 'ICS',
-                monthlyFee: editingClass.monthlyFee?.toString() || '',
                 studentLimit: editingClass.studentLimit || 35,
             }
             : EMPTY_VALUES
@@ -208,7 +202,6 @@ export default function AdminClasses() {
                                     <TableHead>Class Name</TableHead>
                                     <TableHead>Grade Level</TableHead>
                                     <TableHead>Students</TableHead>
-                                    <TableHead>Monthly Fee (PKR)</TableHead>
                                     <TableHead>Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -231,7 +224,6 @@ export default function AdminClasses() {
                           {cls._count?.students || 0}/{cls.studentLimit || 35}
                       </span>
                                         </td>
-                                        <td className="px-4 py-3 align-middle text-gray-500 dark:text-dark-400">{cls.monthlyFee}</td>
                                         <td className="px-4 py-3 align-middle">
                                             <ActionButtons
                                                 onEdit={() => handleOpenDialog(cls)}
@@ -301,22 +293,6 @@ export default function AdminClasses() {
                                     options={PROGRAM_OPTIONS}
                                 />
                             </div>
-
-                            {/*{isMorning && (*/}
-                            {/*    <div className="min-w-24 flex-1">*/}
-                            {/*        <FormField*/}
-                            {/*            label="Fee Per Month"*/}
-                            {/*            name="monthlyFee"*/}
-                            {/*            type="number"*/}
-                            {/*            icon={<DollarSign className="h-4 w-4"/>}*/}
-                            {/*            placeholder="e.g., 5000"*/}
-                            {/*            value={formik.values.monthlyFee}*/}
-                            {/*            error={formik.touched.monthlyFee && formik.errors.monthlyFee}*/}
-                            {/*            onChange={formik.handleChange}*/}
-                            {/*            onBlur={formik.handleBlur}*/}
-                            {/*        />*/}
-                            {/*    </div>*/}
-                            {/*)}*/}
 
                             {/*<div className="min-w-24 flex-1">*/}
                             {/*    <FormField*/}
