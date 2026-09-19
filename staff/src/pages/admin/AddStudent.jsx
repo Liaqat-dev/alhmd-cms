@@ -89,6 +89,8 @@ export default function AddStudent() {
     const [loadingClasses, setLoadingClasses] = useState(true)
     const [loadingStudent, setLoadingStudent] = useState(isEditing)
     const [regularClassId, setRegularClassId] = useState('')
+    const [rollNumberTouched, setRollNumberTouched] = useState(false)
+    const [rollNumberPreviewing, setRollNumberPreviewing] = useState(false)
     const [regularSubjectEnrollments, setRegularSubjectEnrollments] = useState([])
     const [expenses, setExpenses] = useState([])
     const [originalExpenseIds, setOriginalExpenseIds] = useState([])
@@ -149,7 +151,10 @@ export default function AddStudent() {
                 await syncExpenses(id)
                 return null
             } else {
-                const response = await studentsAPI.create(payload)
+                // An untouched preview is a hint, not a claim - let the server
+                // allocate so two open forms can never fight over one number.
+                const {rollNumber: _preview, ...generatedPayload} = payload
+                const response = await studentsAPI.create(rollNumberTouched ? payload : generatedPayload)
                 const newStudentId = response.data.student?.student?.id
                 if (newStudentId && expenses.length > 0) {
                     await syncExpenses(newStudentId)
@@ -174,6 +179,40 @@ export default function AddStudent() {
         fetchAllClasses()
         if (id) fetchStudent()
     }, [id])
+
+    // Show the number this student would be given, so it is visible before
+    // saving. Nothing is reserved: the server allocates for real on create,
+    // which is why an untouched preview is not sent back with the form.
+    useEffect(() => {
+        if (isEditing || rollNumberTouched) return
+
+        if (!regularClassId) {
+            formik.setFieldValue('rollNumber', '')
+            return
+        }
+
+        let cancelled = false
+        setRollNumberPreviewing(true)
+
+        studentsAPI.nextRollNumber({
+            classId: regularClassId,
+            academicYear: formik.values.academicYear,
+            joiningDate: formik.values.joiningDate,
+        })
+            .then(res => {
+                if (!cancelled) formik.setFieldValue('rollNumber', res.data.rollNumber || '')
+            })
+            .catch(() => {
+                if (!cancelled) formik.setFieldValue('rollNumber', '')
+            })
+            .finally(() => {
+                if (!cancelled) setRollNumberPreviewing(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [isEditing, rollNumberTouched, regularClassId, formik.values.academicYear, formik.values.joiningDate])
 
     const fetchAllClasses = async () => {
         try {
@@ -499,42 +538,34 @@ export default function AddStudent() {
                 </p>
             ) : (
                 <div className="space-y-6">
-                    {/* Roll Number */}
-                    <div className="rounded-lg border border-gray-200 dark:border-dark-700 p-4 bg-gray-50/50 dark:bg-dark-850/50">
-                        <div className="flex items-center gap-2 mb-3">
-                            <Hash className="h-4 w-4 text-gray-600 dark:text-dark-300"/>
-                            <label className="text-sm font-semibold text-gray-700 nowrap dark:text-dark-200">Roll Number</label>
-                            <span className="text-xs text-gray-500 dark:text-dark-400 font-medium">
-                                {isEditing ? '(Permanent — cannot be changed)' : '(Leave blank to auto-generate)'}
-                            </span>
-                        </div>
-                        <div className="flex gap-1">
-                            <input
-                                type="text"
-                                placeholder="e.g., ICS26-001"
-                                value={formik.values.rollNumber || ''}
-                                onChange={(e) => formik.setFieldValue('rollNumber', e.target.value)}
-                                onBlur={formik.handleBlur}
-                                readOnly={isEditing}
-                                disabled={isEditing}
-                                aria-readonly={isEditing}
-                                title={isEditing ? 'Roll numbers cannot be changed once a student is created' : undefined}
-                                className={`flex-1 w-24 rounded-lg border border-gray-200 dark:border-dark-700 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-400/40 ${
-                                    isEditing
-                                        ? 'bg-gray-100 dark:bg-dark-800 text-gray-500 dark:text-dark-400 cursor-not-allowed'
-                                        : 'bg-white dark:bg-dark-900 text-gray-800 dark:text-dark-100'
-                                }`}
-                            />
-                        </div>
-                        <p className="mt-2 text-xs text-gray-500 dark:text-dark-400">
-                            {isEditing
-                                ? 'Roll numbers are permanent. Attendance, challans and documents are filed under this number.'
-                                : 'Assigned on save as program + year + serial, e.g. ICS26-001. The serial runs in one sequence shared by all programs for the enrollment year.'}
-                        </p>
-                    </div>
-
                     {/* Enrollment details */}
                     <div className="rounded-lg border border-gray-200 dark:border-dark-700 p-4 bg-gray-50/50 dark:bg-dark-850/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="sm:col-span-2">
+                            <FormField
+                                label="Roll Number"
+                                name="rollNumber"
+                                icon={<Hash className="h-4 w-4"/>}
+                                placeholder={regularClassId ? 'e.g., ICS26-001' : 'Select a class to see the roll number'}
+                                value={formik.values.rollNumber || ''}
+                                onChange={(e) => {
+                                    setRollNumberTouched(true)
+                                    formik.setFieldValue('rollNumber', e.target.value)
+                                }}
+                                onBlur={formik.handleBlur}
+                                disabled={isEditing}
+                            />
+                            <p className="mt-1.5 text-xs text-gray-500 dark:text-dark-400">
+                                {isEditing
+                                    ? 'Permanent — attendance, challans and documents are filed under this number.'
+                                    : rollNumberPreviewing
+                                        ? 'Looking up the next roll number...'
+                                        : rollNumberTouched
+                                            ? 'Custom roll number. Clear it to go back to the generated one.'
+                                            : regularClassId
+                                                ? 'Next available number for this program and year. Confirmed when you save; edit it to override.'
+                                                : 'Generated from the program, enrollment year and a serial shared across all programs.'}
+                            </p>
+                        </div>
                         <FormDate
                             label="Joining Date"
                             name="joiningDate"

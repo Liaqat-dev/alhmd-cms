@@ -38,6 +38,29 @@ const claimNextSerial = async (prisma, year) => {
 const formatRollNumber = (program, year, serial) =>
   `${String(program || FALLBACK_PREFIX).toUpperCase()}${String(year).slice(-2)}-${String(serial).padStart(SERIAL_PAD, '0')}`;
 
+// What the next roll number will look like, WITHOUT consuming a serial.
+// Purely for showing the admin a preview while they fill the form — the real
+// number is claimed at save time, so this can go stale and that is fine.
+const peekRollNumber = async (prisma, { program, academicYear, joiningDate } = {}) => {
+  const year = resolveEnrollmentYear({ academicYear, joiningDate });
+
+  const sequence = await prisma.rollNumberSequence.findUnique({
+    where: { year },
+    select: { lastSerial: true }
+  });
+
+  let serial = (sequence?.lastSerial ?? 0) + 1;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const rollNumber = formatRollNumber(program, year, serial);
+    const taken = await prisma.student.findUnique({ where: { rollNumber }, select: { id: true } });
+    if (!taken) return rollNumber;
+    serial += 1;
+  }
+
+  return null;
+};
+
 const generateRollNumber = async (prisma, { program, academicYear, joiningDate } = {}) => {
   const year = resolveEnrollmentYear({ academicYear, joiningDate });
 
@@ -77,6 +100,7 @@ const parseIds = (values) =>
 
 module.exports = {
   generateRollNumber,
+  peekRollNumber,
   formatRollNumber,
   resolveEnrollmentYear,
   formatDate,

@@ -21,6 +21,9 @@ const uploadDocument = multer({
 // All routes require authentication
 router.use(auth);
 
+// Must be declared before '/:id', or the literal path is swallowed by the param.
+router.get('/next-roll-number', requirePermission('students.create'), studentController.previewRollNumber);
+
 // A student may always view their own profile; anyone else needs students.view.
 router.get('/:id', allowSelfOrPermission(u => u.role === 'STUDENT' ? u.id : null, 'students.view'), studentController.getStudentById);
 

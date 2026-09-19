@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { generateRollNumber, parseId } = require('../utils/helpers');
+const { generateRollNumber, peekRollNumber, parseId } = require('../utils/helpers');
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
@@ -107,6 +107,29 @@ const getStudentById = catchAsync(async (req, res) => {
   };
 
   res.json({ student: responseStudent });
+});
+
+// Preview of the roll number the next student in this class would get.
+// It does not reserve anything, so the number shown can change if someone
+// else is admitted first — the form treats it as a hint, not a claim.
+const previewRollNumber = catchAsync(async (req, res) => {
+  const { classId, academicYear, joiningDate } = req.query;
+
+  const studentClass = classId
+    ? await prisma.class.findUnique({ where: { id: parseId(classId) }, select: { program: true } })
+    : null;
+
+  if (!studentClass) {
+    throw new AppError(400, { message: 'A valid class must be selected.' });
+  }
+
+  const rollNumber = await peekRollNumber(prisma, {
+    program: studentClass.program,
+    academicYear,
+    joiningDate
+  });
+
+  res.json({ rollNumber, program: studentClass.program });
 });
 
 const createStudent = catchAsync(async (req, res) => {
@@ -302,6 +325,7 @@ const getStudentsByClass = catchAsync(async (req, res) => {
 module.exports = {
   getAllStudents,
   getStudentById,
+  previewRollNumber,
   createStudent,
   updateStudent,
   deleteStudent,

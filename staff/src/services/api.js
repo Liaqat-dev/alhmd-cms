@@ -118,6 +118,7 @@ export const studentsAPI = {
   update: (id, data) => api.put(`/students/${id}`, data),
   delete: (id) => api.delete(`/students/${id}`),
   getByClass: (classId) => api.get(`/students/class/${classId}`),
+  nextRollNumber: (params) => api.get('/students/next-roll-number', { params }),
   getDocuments: (id) => api.get(`/students/${id}/documents`),
   uploadDocument: (id, type, file) => {
     const formData = new FormData()
