@@ -5,9 +5,10 @@ import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,} from '@/components/ui/dialog'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select'
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {subjectsAPI, timetableAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
-import {BookOpen, Calendar, Clock, Pencil, Plus, Trash2, User} from 'lucide-react'
+import {BookOpen, Calendar, Clock, GraduationCap, Pencil, Plus, Trash2, User, Users} from 'lucide-react'
 import {useClasses} from '@/hooks/useClasses'
 import {useTeachers} from '@/hooks/useTeachers'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
@@ -159,7 +160,7 @@ function ClassTimetableTab() {
                 addLabel={'Add Lecture'}
                 onAdd={() => handleOpenDialog()}
             >
-                <div className="flex flex-wrap items-center justify-between mb-6 gap-3">
+                <div className="flex  items-center justify-between mb-6 gap-3">
                     <Select value={selectedClassId} onValueChange={setSelectedClassId}>
                         <SelectTrigger className="w-full xs:w-35">
                             <SelectValue placeholder="Select class"/>
@@ -417,39 +418,24 @@ function TeacherTimetableTab() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AdminTimetable() {
-    const [activeTab, setActiveTab] = useState('class')
-
     return (
         <DashboardLayout title="Timetable Management">
-            <div className="space-y-6">
-                {/* Tab switcher */}
-                <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
-                    <button
-                        onClick={() => setActiveTab('class')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                            activeTab === 'class'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        <Calendar className="h-4 w-4"/>
-                        Class Timetable
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('teacher')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                            activeTab === 'teacher'
-                                ? 'bg-background text-foreground shadow-sm'
-                                : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                    >
-                        <User className="h-4 w-4"/>
-                        Teacher Timetable
-                    </button>
-                </div>
-
-                {activeTab === 'class' ? <ClassTimetableTab/> : <TeacherTimetableTab/>}
-            </div>
+            <Tabs defaultValue="class" className="space-y-6">
+                <TabsList>
+                    <TabsTrigger value="class" className="gap-1.5">
+                        <GraduationCap className="h-3.5 w-3.5"/> Class Timetable
+                    </TabsTrigger>
+                    <TabsTrigger value="teacher" className="gap-1.5">
+                        <Users className="h-3.5 w-3.5"/> Teacher Timetable
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="class">
+                    <ClassTimetableTab/>
+                </TabsContent>
+                <TabsContent value="teacher">
+                    <TeacherTimetableTab/>
+                </TabsContent>
+            </Tabs>
         </DashboardLayout>
     )
 }

@@ -120,12 +120,13 @@ export default function AdminStudents() {
                 >
                     {/* Filters */}
                     <div className="w-full flex flex-row justify-between mb-6 gap-3 flex-wrap">
-                        <div className="flex flex-wrap gap-3">
+                        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:flex-wrap">
+                            {/*<div className="flex sm:inline w-full sm:w-fit gap-2">*/}
                             <Select
                                 value={filterClass}
                                 onValueChange={(val) => updateFilters({classId: val})}
                             >
-                                <SelectTrigger className="w-full  xs:w-35">
+                                <SelectTrigger className="w-full sm:w-35">
                                     <SelectValue placeholder="All Classes"/>
                                 </SelectTrigger>
                                 <SelectContent>
@@ -139,7 +140,7 @@ export default function AdminStudents() {
                                 value={filterStatus}
                                 onValueChange={(val) => updateFilters({status: val})}
                             >
-                                <SelectTrigger className="w-full  xs:w-35">
+                                <SelectTrigger className="w-full sm:w-35">
                                     <SelectValue placeholder="All Status"/>
                                 </SelectTrigger>
                                 <SelectContent>
@@ -148,11 +149,12 @@ export default function AdminStudents() {
                                     <SelectItem value="PENDING">Pending</SelectItem>
                                 </SelectContent>
                             </Select>
+                            {/*</div>*/}
                             <Select
                                 value={filterAcademicYear}
                                 onValueChange={(val) => updateFilters({academicYear: val})}
                             >
-                                <SelectTrigger className="w-full  xs:w-35">
+                                <SelectTrigger className="col-span-2 w-full sm:col-span-1 sm:w-35">
                                     <SelectValue placeholder="All Years"/>
                                 </SelectTrigger>
                                 <SelectContent>

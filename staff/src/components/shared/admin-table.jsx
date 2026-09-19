@@ -48,7 +48,7 @@ export function PagePanel({
                     </Button>
                 )}
             </div>
-            <div className="p-6">{children}</div>
+            <div className="p-2 sm:p-6">{children}</div>
         </div>
     )
 }

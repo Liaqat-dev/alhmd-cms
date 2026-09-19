@@ -242,7 +242,7 @@ export default function AdminSubjects() {
                                     <TableRow key={subject.id} className="hover:bg-muted/30 transition-colors">
                                         <TableCell>
                                             <div className="flex items-center gap-2">
-                                                <BookOpen className="h-3.5 w-3.5 text-emerald-500 shrink-0"/>
+                                                <BookOpen className="h-6 w-6 text-emerald-500 shrink-0"/>
                                                 <div className="flex flex-col">
                                                     <span className="font-medium">{subject.name}</span>
                                                     <span className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-dark-500">
