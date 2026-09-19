@@ -16,7 +16,7 @@ import AddTeacher from './pages/admin/AddTeacher'
 import TeacherProfile from './pages/admin/TeacherProfile'
 import Classes from './pages/admin/Classes'
 import Subjects from './pages/admin/Subjects'
-import Announcements from './pages/admin/Announcements'
+import Notices from './pages/admin/Notices'
 import Events from './pages/admin/Events'
 import AdminTimetable from './pages/admin/Timetable'
 import TeacherTimetable from './pages/teacher/Timetable'
@@ -122,7 +122,7 @@ function App() {
 
         <Route path="/classes" element={<ProtectedRoute permission="classes.view"><Classes /></ProtectedRoute>} />
         <Route path="/subjects" element={<ProtectedRoute permission="subjects.view"><Subjects /></ProtectedRoute>} />
-        <Route path="/announcements" element={<ProtectedRoute permission="announcements.view"><Announcements /></ProtectedRoute>} />
+        <Route path="/announcements" element={<ProtectedRoute permission="announcements.view"><Notices /></ProtectedRoute>} />
 
         {/* No permission catalog entry for these — backend still hardcodes ADMIN */}
         <Route path="/events" element={<ProtectedRoute adminOnly><Events /></ProtectedRoute>} />

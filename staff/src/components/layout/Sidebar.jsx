@@ -48,7 +48,7 @@ function buildLinks(isTeacher) {
         {href: '/classes', label: 'Classes', icon: School, permission: 'classes.view'},
         {href: '/subjects', label: 'Subjects', icon: BookOpen, permission: 'subjects.view'},
         {href: '/timetable', label: isTeacher ? 'My Timetable' : 'Timetable', icon: Clock},
-        {href: '/announcements', label: 'Announcements', icon: Megaphone, permission: 'announcements.view'},
+        {href: '/announcements', label: 'Notices', icon: Megaphone, permission: 'announcements.view'},
         {href: '/mark-attendance', label: 'Mark Attendance', icon: ClipboardList, permission: ['attendance.create', 'teacherAttendance.create']},
         {href: '/attendance-register', label: 'Attendance Register', icon: ListTodo, permission: ['attendance.view', 'teacherAttendance.view']},
         {href: '/fees', label: 'Fee Management', icon: DollarSign, adminOnly: true},

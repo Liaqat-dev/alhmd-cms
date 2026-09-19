@@ -16,7 +16,7 @@ const breadcrumbMap = {
     '/classes': 'Classes',
     '/subjects': 'Subjects',
     '/timetable': 'Timetable',
-    '/announcements': 'Announcements',
+    '/announcements': 'Notices',
     '/events': 'Events',
     '/fees': 'Fee Management',
     '/marks': 'Marks & Exams',

@@ -40,7 +40,7 @@ const initialValues = {
   expiresAt: '',
 }
 
-export default function AdminAnnouncements() {
+export default function AdminNotices() {
   const [announcements, setAnnouncements] = useState([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -59,7 +59,7 @@ export default function AdminAnnouncements() {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to fetch announcements',
+        description: 'Failed to fetch notices',
       })
     } finally {
       setLoading(false)
@@ -83,7 +83,7 @@ export default function AdminAnnouncements() {
     onSuccess: (isEdit) => {
       toast({
         title: 'Success',
-        description: isEdit ? 'Announcement updated successfully' : 'Announcement created successfully',
+        description: isEdit ? 'Notice updated successfully' : 'Notice created successfully',
       })
       setDialogOpen(false)
       fetchAnnouncements()
@@ -111,16 +111,16 @@ export default function AdminAnnouncements() {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this announcement?')) return
+    if (!window.confirm('Are you sure you want to delete this notice?')) return
     try {
       await announcementsAPI.delete(id)
-      toast({ title: 'Success', description: 'Announcement deleted successfully' })
+      toast({ title: 'Success', description: 'Notice deleted successfully' })
       fetchAnnouncements()
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.response?.data?.message || 'Failed to delete announcement',
+        description: error.response?.data?.message || 'Failed to delete notice',
       })
     }
   }
@@ -128,13 +128,13 @@ export default function AdminAnnouncements() {
   const handleToggle = async (id) => {
     try {
       await announcementsAPI.toggle(id)
-      toast({ title: 'Success', description: 'Announcement status updated' })
+      toast({ title: 'Success', description: 'Notice status updated' })
       fetchAnnouncements()
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to toggle announcement status',
+        description: 'Failed to toggle notice status',
       })
     }
   }
@@ -152,15 +152,15 @@ export default function AdminAnnouncements() {
   }
 
   return (
-    <DashboardLayout title="Announcement Management">
+    <DashboardLayout title="Notices">
       <div className="space-y-6">
         <PagePanel
             icon={Megaphone}
-            title={'Announcement'}
+            title={'Notice'}
             iconBg="bg-primary-500/10 dark:bg-primary-500/15"
             iconColor="text-primary-600 dark:text-primary-400"
             count={announcements.length}
-            countLabel={"Total announcements"}
+            countLabel={"Total notices"}
             addLabel={'Announce'}
             onAdd={() => handleOpenDialog()}
 
@@ -168,7 +168,7 @@ export default function AdminAnnouncements() {
           {loading ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary"></div>
-                <p className="text-sm text-muted-foreground">Loading announcements...</p>
+                <p className="text-sm text-muted-foreground">Loading notices...</p>
               </div>
           ) : (
               <Table>
@@ -257,7 +257,7 @@ export default function AdminAnnouncements() {
                             <div className="rounded-full bg-muted p-3">
                               <Megaphone className="h-5 w-5 text-muted-foreground" />
                             </div>
-                            <p className="text-sm text-muted-foreground">No announcements found</p>
+                            <p className="text-sm text-muted-foreground">No notices found</p>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -273,7 +273,7 @@ export default function AdminAnnouncements() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-lg">
-              {editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}
+              {editingAnnouncement ? 'Edit Notice' : 'New Notice'}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={formik.handleSubmit} className="space-y-4">
@@ -282,7 +282,7 @@ export default function AdminAnnouncements() {
               label="Title"
               name="title"
               icon={<Megaphone className="h-4 w-4" />}
-              placeholder="Announcement title"
+              placeholder="Notice title"
               value={formik.values.title}
               error={formik.touched.title && formik.errors.title}
               onChange={formik.handleChange}
@@ -293,7 +293,7 @@ export default function AdminAnnouncements() {
               label="Content"
               name="content"
               icon={<Megaphone className="h-4 w-4" />}
-              placeholder="Announcement content..."
+              placeholder="Notice content..."
               value={formik.values.content}
               error={formik.touched.content && formik.errors.content}
               onChange={formik.handleChange}

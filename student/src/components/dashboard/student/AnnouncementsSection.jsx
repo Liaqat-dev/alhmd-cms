@@ -71,7 +71,7 @@ export default function AnnouncementsSection({ announcements = [], limit = 5 }) 
                     </div>
                     <div>
                         <h2 className="cga-display text-lg font-bold text-foreground tracking-tight">
-                            Announcements
+                            Notices
                         </h2>
                         <p className="text-xs text-muted-foreground mt-0.5">Latest updates & notices</p>
                     </div>
@@ -95,7 +95,7 @@ export default function AnnouncementsSection({ announcements = [], limit = 5 }) 
                         {hasMore && (
                             <div className="mt-4 pt-4 border-t border-border/40 text-center">
                                 <button className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors">
-                                    View all {announcements.length} announcements →
+                                    View all {announcements.length} notices →
                                 </button>
                             </div>
                         )}
@@ -105,7 +105,7 @@ export default function AnnouncementsSection({ announcements = [], limit = 5 }) 
                         <div className="h-11 w-11 rounded-full bg-muted border border-border flex items-center justify-center">
                             <Megaphone className="h-5 w-5 text-muted-foreground" />
                         </div>
-                        <p className="text-sm font-medium text-muted-foreground">No announcements yet</p>
+                        <p className="text-sm font-medium text-muted-foreground">No notices yet</p>
                         <p className="text-xs text-muted-foreground">Check back later for updates.</p>
                     </div>
                 )}

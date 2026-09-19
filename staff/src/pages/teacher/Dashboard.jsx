@@ -331,7 +331,7 @@ export default function TeacherDashboard() {
                         </div>
                     </div>
 
-                    {/* Announcements */}
+                    {/* Notices */}
                     <div className="rounded-2xl border border-border bg-card shadow-sm">
                         <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-4 border-b border-border/50">
                             <div className="flex items-center gap-3">
@@ -340,7 +340,7 @@ export default function TeacherDashboard() {
                                 </div>
                                 <div>
                                     <h2 className="tch-display text-lg font-bold text-foreground tracking-tight">
-                                        Announcements
+                                        Notices
                                     </h2>
                                     <p className="text-xs text-muted-foreground mt-0.5">Latest updates & notices</p>
                                 </div>
@@ -364,7 +364,7 @@ export default function TeacherDashboard() {
                                     <div className="h-11 w-11 rounded-full bg-muted border border-border flex items-center justify-center">
                                         <Megaphone className="h-5 w-5 text-muted-foreground" />
                                     </div>
-                                    <p className="text-sm font-medium text-muted-foreground">No announcements yet</p>
+                                    <p className="text-sm font-medium text-muted-foreground">No notices yet</p>
                                 </div>
                             )}
                         </div>
