@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
@@ -10,7 +8,10 @@ import { attendanceAPI, teachersAPI, timetableAPI } from '@/services/api'
 import { useClasses } from '@/hooks/useClasses'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/hooks/use-toast'
-import { CheckCircle, XCircle, Palmtree, Save, Users, CalendarDays, UserCheck, UserX } from 'lucide-react'
+import AttendanceRow from '@/components/shared/AttendanceRow'
+import AttendanceSaveDialog from '@/components/shared/AttendanceSaveDialog'
+import { PagePanel } from '@/components/shared/admin-table'
+import { CheckCircle, Palmtree, Save, Users, CalendarDays, UserCheck, UserX } from 'lucide-react'
 
 const JS_DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -52,6 +53,7 @@ export default function StudentAttendancePanel() {
   const [markedDates, setMarkedDates] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const classes = isTeacher
     ? myClasses.map(c => ({ id: c.classId, name: c.className }))
@@ -118,7 +120,14 @@ export default function StudentAttendancePanel() {
     setLoading(true)
     try {
       const response = await attendanceAPI.getByClass(selectedClassId, { date: selectedDate })
-      const records = response.data.attendance.map(a => ({ ...a, alreadySaved: !!a.status }))
+      // Attendance defaults to present, so marking is only about the few who
+      // were not. alreadySaved still reflects what the server actually holds,
+      // so an untouched default never looks like an already-saved record.
+      const records = response.data.attendance.map(a => ({
+        ...a,
+        alreadySaved: !!a.status,
+        status: a.status || 'PRESENT',
+      }))
       setAttendance(records)
       if (records.length > 0 && records.every(a => a.alreadySaved)) {
         setMarkedDates(prev => new Set([...prev, selectedDate]))
@@ -135,14 +144,15 @@ export default function StudentAttendancePanel() {
   }
 
   const markAllPresent = () => setAttendance(prev => prev.map(a => ({ ...a, status: 'PRESENT' })))
-  const markAllAbsent = () => setAttendance(prev => prev.map(a => ({ ...a, status: 'ABSENT' })))
 
   const handleSelectClass = (id) => {
     setSelectedClassId(id)
     if (isTeacher) navigate(`/mark-attendance/${id}`)
   }
 
-  const handleSave = async () => {
+  // Saving is one click on a roster that defaults to present, so the totals
+  // get confirmed before anything is written.
+  const requestSave = () => {
     const unmarked = attendance.filter(a => !a.status)
     if (unmarked.length > 0) {
       toast({
@@ -152,7 +162,10 @@ export default function StudentAttendancePanel() {
       })
       return
     }
+    setConfirmOpen(true)
+  }
 
+  const handleSave = async () => {
     setSaving(true)
     try {
       await attendanceAPI.mark({
@@ -165,6 +178,7 @@ export default function StudentAttendancePanel() {
       })
       setMarkedDates(prev => new Set([...prev, selectedDate]))
       setAttendance(prev => prev.map(a => ({ ...a, alreadySaved: true })))
+      setConfirmOpen(false)
       toast({ title: 'Success', description: `Attendance saved for ${attendance.length} students` })
     } catch (error) {
       toast({
@@ -181,46 +195,33 @@ export default function StudentAttendancePanel() {
   const presentCount = attendance.filter(a => a.status === 'PRESENT').length
   const absentCount = attendance.filter(a => a.status === 'ABSENT').length
   const leaveCount = attendance.filter(a => a.status === 'LEAVE').length
-  const unmarkedCount = attendance.filter(a => !a.status).length
 
   return (
     <div className="space-y-6">
 
       {/* Controls */}
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex flex-wrap gap-4">
-            <div className="space-y-1.5 flex-1 min-w-[180px]">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Class</Label>
-              <Select value={selectedClassId} onValueChange={handleSelectClass} disabled={classesLoading}>
-                <SelectTrigger>
-                  <SelectValue placeholder={classesLoading ? 'Loading…' : 'Select class'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="w-full flex flex-row justify-between gap-3 flex-wrap">
+        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:flex-wrap">
+          <Select value={selectedClassId} onValueChange={handleSelectClass} disabled={classesLoading}>
+            <SelectTrigger className="col-span-2 w-full sm:col-span-1 sm:w-35">
+              <SelectValue placeholder={classesLoading ? 'Loading…' : 'Select class'} />
+            </SelectTrigger>
+            <SelectContent>
+              {classes.map(c => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       {/* Date Cards */}
       {selectedClassId && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-muted-foreground" />
-              {monthLabel}
-            </h3>
-            {scheduledDays.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                Scheduled on: {scheduledDays.map(d => d.charAt(0) + d.slice(1).toLowerCase()).join(', ')}
-              </span>
-            )}
-          </div>
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+            {monthLabel}
+          </h3>
 
           {scheduledDays.length === 0 ? (
             <div className="flex items-center gap-3 p-4 rounded-xl border border-dashed border-border bg-muted/30">
@@ -233,7 +234,7 @@ export default function StudentAttendancePanel() {
               <p className="text-sm text-muted-foreground">No lectures scheduled in the current month.</p>
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-6 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
               {lectureDates.map(dateStr => {
                 const date = new Date(dateStr + 'T00:00:00')
                 const isPast = dateStr <= todayStr
@@ -246,7 +247,7 @@ export default function StudentAttendancePanel() {
                     disabled={!isPast}
                     onClick={() => setSelectedDate(dateStr)}
                     className={[
-                      'relative flex flex-col items-center w-16 py-2.5 px-1 rounded-xl border transition-all',
+                      'relative flex flex-col items-center w-full sm:w-16 py-2 px-0.5 sm:py-2.5 sm:px-1 rounded-lg sm:rounded-xl border transition-all',
                       isSelected
                         ? 'bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20'
                         : isMarked
@@ -259,13 +260,13 @@ export default function StudentAttendancePanel() {
                     {isMarked && !isSelected && (
                       <CheckCircle className="absolute -top-1.5 -right-1.5 h-4 w-4 text-emerald-500 bg-white rounded-full" />
                     )}
-                    <span className={`text-[10px] font-medium uppercase tracking-wide mb-0.5 ${isSelected ? 'text-primary-foreground/70' : isMarked ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                    <span className={`text-[9px] sm:text-[10px] font-medium uppercase tracking-wide mb-0.5 ${isSelected ? 'text-primary-foreground/70' : isMarked ? 'text-emerald-600' : 'text-muted-foreground'}`}>
                       {SHORT_DAYS[date.getDay()]}
                     </span>
-                    <span className={`text-xl font-bold leading-none ${isSelected ? 'text-primary-foreground' : isMarked ? 'text-emerald-700' : isPast ? 'text-foreground' : ''}`}>
+                    <span className={`text-base sm:text-xl font-bold leading-none ${isSelected ? 'text-primary-foreground' : isMarked ? 'text-emerald-700' : isPast ? 'text-foreground' : ''}`}>
                       {date.getDate()}
                     </span>
-                    <span className={`text-[10px] mt-0.5 ${isSelected ? 'text-primary-foreground/70' : isMarked ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                    <span className={`text-[9px] sm:text-[10px] mt-0.5 ${isSelected ? 'text-primary-foreground/70' : isMarked ? 'text-emerald-600' : 'text-muted-foreground'}`}>
                       {SHORT_MONTHS[date.getMonth()]}
                     </span>
                   </button>
@@ -276,38 +277,27 @@ export default function StudentAttendancePanel() {
         </div>
       )}
 
-      {/* Action buttons */}
-      {selectedDate && !markedDates.has(selectedDate) && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <Button variant="outline" onClick={markAllPresent} size="sm" className="gap-1.5 h-9">
-            <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> All Present
-          </Button>
-          <Button variant="outline" onClick={markAllAbsent} size="sm" className="gap-1.5 h-9">
-            <XCircle className="h-3.5 w-3.5 text-rose-600" /> All Absent
-          </Button>
-          <Button onClick={handleSave} disabled={saving} className="ml-auto gap-2">
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
-        </div>
-      )}
-
       {/* Quick Stats */}
       {attendance.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-4 gap-2 sm:gap-3">
+          {/* Class names are written out in full: Tailwind only generates what
+              it can see in the source, so a composed `text-${color}-600` never
+              makes it into the stylesheet. */}
           {[
-            { label: 'Present', count: presentCount, icon: UserCheck, color: 'emerald' },
-            { label: 'Absent',  count: absentCount,  icon: UserX,    color: 'rose' },
-            { label: 'Leave',   count: leaveCount,   icon: Palmtree, color: 'amber' },
-            { label: 'Total',   count: attendance.length, icon: Users, color: 'muted' },
-          ].map(({ label, count, icon: Icon, color }) => (
-            <div key={label} className="flex items-center gap-3 p-3.5 card">
-              <div className={`h-10 w-10 rounded-lg bg-${color}-500/10 flex items-center justify-center`}>
-                <Icon className={`h-5 w-5 text-${color}-600`} />
+            { label: 'Total',   count: attendance.length, icon: Users, tint: 'bg-muted',         iconColor: 'text-muted-foreground', countColor: '' },
+            { label: 'Present', count: presentCount, icon: UserCheck, tint: 'bg-emerald-500/10', iconColor: 'text-emerald-600', countColor: 'text-emerald-700' },
+            { label: 'Absent',  count: absentCount,  icon: UserX,     tint: 'bg-rose-500/10',    iconColor: 'text-rose-600',    countColor: 'text-rose-700' },
+            { label: 'Leave',   count: leaveCount,   icon: Palmtree,  tint: 'bg-amber-500/10',   iconColor: 'text-amber-600',   countColor: 'text-amber-700' },
+          ].map(({ label, count, icon: Icon, tint, iconColor, countColor }) => (
+            // Stacked and centred on phones so four fit across; the original
+            // icon-beside-text row returns as soon as there is width for it.
+            <div key={label} className={`flex flex-row items-center text-center ${tint} gap-0.5 p-0.5 card sm:flex-row sm:items-center sm:text-left sm:gap-1 sm:p-2`}>
+              <div className={`h-7 w-7 sm:h-8 sm:w-8 shrink-0  flex items-center justify-center`}>
+                <Icon className={`h-5 w-5 sm:h-8 sm:w-8 ${iconColor}`} />
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">{label}</p>
-                <p className={`text-xl font-bold ${color !== 'muted' ? `text-${color}-700` : ''}`}>{count}</p>
+              <div className="min-w-0">
+                <p className="text-[9px] sm:text-xs text-muted-foreground font-medium leading-tight">{label}</p>
+                <p className={`text-base sm:text-lg font-bold leading-tight ${countColor}`}>{count}</p>
               </div>
             </div>
           ))}
@@ -315,33 +305,16 @@ export default function StudentAttendancePanel() {
       )}
 
       {/* Attendance Grid */}
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2.5">
-                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <CalendarDays className="h-4 w-4 text-primary" />
-                </div>
-                <div>{selectedClass?.name || 'Select a Class'}</div>
-              </CardTitle>
-              {selectedDate && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
-                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                  })}
-                </p>
-              )}
-            </div>
-            {unmarkedCount > 0 && attendance.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                {unmarkedCount} unmarked
-              </span>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
+      <PagePanel
+        icon={CalendarDays}
+        title={selectedClass?.name || 'Select a Class'}
+        count={attendance.length}
+        countLabel={selectedDate
+          ? `students · ${new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+          }).toUpperCase()}`
+          : 'students'}
+      >
           {!selectedDate ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
@@ -380,77 +353,48 @@ export default function StudentAttendancePanel() {
             </div>
           ) : (
             <div className="space-y-2">
-              {attendance.map((student, index) => (
-                <div
+              {attendance.map(student => (
+                <AttendanceRow
                   key={student.studentId}
-                  className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3.5 rounded-xl border transition-colors ${
-                    student.status === 'PRESENT' ? 'bg-emerald-50/50 border-emerald-200/60'
-                    : student.status === 'ABSENT' ? 'bg-rose-50/50 border-rose-200/60'
-                    : student.status === 'LEAVE' ? 'bg-amber-50/50 border-amber-200/60'
-                    : 'bg-card border-border'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0 sm:flex-1">
-                    <div className={`h-9 w-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
-                      student.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-700'
-                      : student.status === 'ABSENT' ? 'bg-rose-100 text-rose-700'
-                      : student.status === 'LEAVE' ? 'bg-amber-100 text-amber-700'
-                      : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {index + 1}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{student.name}</p>
-                      <p className="text-xs text-muted-foreground font-mono">{student.rollNumber}</p>
-                    </div>
-                  </div>
-
-                  {student.alreadySaved ? (
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        student.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-700'
-                        : student.status === 'ABSENT' ? 'bg-rose-100 text-rose-700'
-                        : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${
-                          student.status === 'PRESENT' ? 'bg-emerald-500'
-                          : student.status === 'ABSENT' ? 'bg-rose-500'
-                          : 'bg-amber-500'
-                        }`} />
-                        {student.status}
-                      </span>
-                      <div className="h-9 w-9 rounded-lg bg-emerald-500 flex items-center justify-center shadow-sm shadow-emerald-200">
-                        <CheckCircle className="h-4 w-4 text-white" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-1.5 shrink-0">
-                      {[
-                        { s: 'PRESENT', icon: CheckCircle, active: 'bg-emerald-500 text-white shadow-sm shadow-emerald-200', hover: 'hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-600' },
-                        { s: 'ABSENT',  icon: XCircle,    active: 'bg-rose-500 text-white shadow-sm shadow-rose-200',   hover: 'hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600' },
-                        { s: 'LEAVE',   icon: Palmtree,      active: 'bg-amber-500 text-white shadow-sm shadow-amber-200', hover: 'hover:border-amber-300 hover:bg-amber-50 hover:text-amber-600' },
-                      ].map(({ s, icon: Icon, active, hover }) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => updateStatus(student.studentId, s)}
-                          className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all ${
-                            student.status === s
-                              ? active
-                              : `bg-background border border-border ${hover} text-muted-foreground`
-                          }`}
-                        >
-                          <Icon className="h-4 w-4" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                  name={student.name}
+                  subtitle={student.rollNumber}
+                  profilePicUrl={student.profilePicUrl}
+                  status={student.status}
+                  readOnly={student.alreadySaved}
+                  onChange={next => updateStatus(student.studentId, next)}
+                />
               ))}
+
+              {!markedDates.has(selectedDate) && (
+                <div className="flex flex-wrap gap-2 items-center pt-3">
+                  <Button variant="outline" onClick={markAllPresent} size="sm" className="gap-1.5 h-9">
+                    <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> All Present
+                  </Button>
+                  <Button onClick={requestSave} disabled={saving} className="ml-auto gap-2">
+                    <Save className="h-4 w-4" />
+                    Save
+                  </Button>
+                </div>
+              )}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </PagePanel>
+
+      {/* Confirm totals before writing */}
+      <AttendanceSaveDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        subtitle={[selectedClass?.name, selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+        })].filter(Boolean).join(' · ')}
+        present={presentCount}
+        absent={absentCount}
+        leave={leaveCount}
+        total={attendance.length}
+        noun="student"
+        saving={saving}
+        onConfirm={handleSave}
+      />
 
     </div>
   )

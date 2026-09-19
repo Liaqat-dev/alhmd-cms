@@ -89,7 +89,7 @@ const getAttendanceByClass = catchAsync(async (req, res) => {
 
   const enrollments = await prisma.enrollment.findMany({
     where: { classId: classId, isActive: true },
-    include: { student: { select: { id: true, name: true, rollNumber: true } } },
+    include: { student: { select: { id: true, name: true, rollNumber: true, profilePicUrl: true } } },
     orderBy: { student: { name: 'asc' } }
   });
 
@@ -104,6 +104,7 @@ const getAttendanceByClass = catchAsync(async (req, res) => {
     studentId: e.student.id,
     name: e.student.name,
     rollNumber: e.student.rollNumber,
+    profilePicUrl: e.student.profilePicUrl,
     status: attendanceMap.get(e.student.id) || null
   }));
 
@@ -329,7 +330,7 @@ const getTeacherAttendanceByDate = catchAsync(async (req, res) => {
   attendanceDate.setHours(0, 0, 0, 0);
 
   const teachers = await prisma.teacher.findMany({
-    select: { id: true, name: true },
+    select: { id: true, name: true, user: { select: { profilePicUrl: true } } },
     orderBy: { name: 'asc' }
   });
 
@@ -341,6 +342,7 @@ const getTeacherAttendanceByDate = catchAsync(async (req, res) => {
   const attendance = teachers.map(t => ({
     teacherId: t.id,
     name: t.name,
+    profilePicUrl: t.user?.profilePicUrl || null,
     status: statusMap.get(t.id) || null
   }));
 
