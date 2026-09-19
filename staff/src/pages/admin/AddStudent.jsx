@@ -247,14 +247,6 @@ export default function AddStudent() {
         return {value: label, label}
     })
 
-    // ── Generate roll number ────────────────────────────────────────────────────
-    const generateNewRollNumber = () => {
-        // Generate a random 4-digit number
-        const randomNum = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
-        const newRollNumber = `${randomNum}-${currentYear}`
-        formik.setFieldValue('rollNumber', newRollNumber)
-    }
-
     // ── Enrollment handlers ────────────────────────────────────────────────────
     const handleRegularSelect = (cls) => {
         if (regularClassId === cls.id) {
@@ -510,27 +502,24 @@ export default function AddStudent() {
                         <div className="flex items-center gap-2 mb-3">
                             <Hash className="h-4 w-4 text-gray-600 dark:text-dark-300"/>
                             <label className="text-sm font-semibold text-gray-700 nowrap dark:text-dark-200">Roll Number</label>
-                            {!isEditing && <span className="text-xs text-gray-500 dark:text-dark-400 font-medium">(Auto-generated, editable)</span>}
+                            {!isEditing && <span className="text-xs text-gray-500 dark:text-dark-400 font-medium">(Leave blank to auto-generate)</span>}
                         </div>
                         <div className="flex gap-1">
                             <input
                                 type="text"
-                                placeholder="e.g., 0001-2026"
+                                placeholder="e.g., ICS26-001"
                                 value={formik.values.rollNumber || ''}
                                 onChange={(e) => formik.setFieldValue('rollNumber', e.target.value)}
                                 onBlur={formik.handleBlur}
                                 className="flex-1 w-24 rounded-lg border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 px-3 py-2 text-sm font-medium text-gray-800 dark:text-dark-100 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
                             />
-                            {!isEditing && (
-                                <button
-                                    type="button"
-                                    onClick={() => generateNewRollNumber()}
-                                    className="px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-400/30 bg-blue-50 dark:bg-blue-400/8 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-400/15 text-sm font-medium transition-colors"
-                                >
-                                    Generate
-                                </button>
-                            )}
                         </div>
+                        {!isEditing && (
+                            <p className="mt-2 text-xs text-gray-500 dark:text-dark-400">
+                                Assigned on save as program + year + serial, e.g. ICS26-001. The serial runs
+                                in one sequence shared by all programs for the enrollment year.
+                            </p>
+                        )}
                     </div>
 
                     {/* Enrollment details */}

@@ -348,6 +348,17 @@ model Student {
   passwordResets PasswordReset[]
 }
 
+// ── Roll numbers ──────────────────────────────────────────────────────────────
+// Roll numbers read PROGRAM + YY - SERIAL (e.g. ICS26-001). One counter per
+// enrollment year, shared by every program, so serials never repeat or reset
+// between programs within the same year.
+
+model RollNumberSequence {
+  year       Int      @id
+  lastSerial Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
 // ── Classes ───────────────────────────────────────────────────────────────────
 // Classes charge a custom monthly fee per student (set on enrollment).
 // Teachers are assigned per subject, not per class.

@@ -1,21 +1,55 @@
-const generateRollNumber = async (prisma) => {
-  const currentYear = new Date().getFullYear();
-  const yearSuffix = String(currentYear).slice(-2); // Get last 2 digits (e.g., 26 from 2026)
+// ── Roll numbers ──────────────────────────────────────────────────────────────
+// Format: PROGRAM + YY - SERIAL  (e.g. ICS26-001, MED26-002, IT26-003).
+// The serial is a single counter per enrollment year shared by every program,
+// drawn from RollNumberSequence so concurrent admissions can never collide.
 
-  // Get count of students registered this year
-  const count = await prisma.student.count({
-    where: {
-      registrationDate: {
-        gte: new Date(`${currentYear}-01-01`),
-        lt: new Date(`${currentYear + 1}-01-01`)
-      }
-    }
+const SERIAL_PAD = 3;
+const FALLBACK_PREFIX = 'GEN';
+const MAX_ATTEMPTS = 25;
+
+// Enrollment year: the academic year the student is admitted into
+// ("2026-2028" -> 2026), falling back to the joining date, then today.
+const resolveEnrollmentYear = ({ academicYear, joiningDate } = {}) => {
+  const match = /^(\d{4})/.exec(String(academicYear || ''));
+  if (match) return parseInt(match[1], 10);
+
+  if (joiningDate) {
+    const parsed = new Date(joiningDate);
+    if (!isNaN(parsed.getTime())) return parsed.getFullYear();
+  }
+
+  return new Date().getFullYear();
+};
+
+// Atomically claim the next serial for the year. The upsert compiles to a
+// single INSERT ... ON CONFLICT DO UPDATE, so two simultaneous admissions get
+// two different numbers instead of both reading the same count.
+const claimNextSerial = async (prisma, year) => {
+  const { lastSerial } = await prisma.rollNumberSequence.upsert({
+    where: { year },
+    create: { year, lastSerial: 1 },
+    update: { lastSerial: { increment: 1 } },
+    select: { lastSerial: true }
   });
 
-  // Format: XXXX-YYYY (e.g., 0001-2026)
-  const rollNumber = `${String(count + 1).padStart(4, '0')}-${currentYear}`;
+  return lastSerial;
+};
 
-  return rollNumber;
+const formatRollNumber = (program, year, serial) =>
+  `${String(program || FALLBACK_PREFIX).toUpperCase()}${String(year).slice(-2)}-${String(serial).padStart(SERIAL_PAD, '0')}`;
+
+const generateRollNumber = async (prisma, { program, academicYear, joiningDate } = {}) => {
+  const year = resolveEnrollmentYear({ academicYear, joiningDate });
+
+  // The counter alone guarantees uniqueness for generated numbers, but an admin
+  // may have typed a matching one by hand — skip past any serial already taken.
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const rollNumber = formatRollNumber(program, year, await claimNextSerial(prisma, year));
+    const taken = await prisma.student.findUnique({ where: { rollNumber }, select: { id: true } });
+    if (!taken) return rollNumber;
+  }
+
+  throw new Error(`Could not allocate a unique roll number for ${year} after ${MAX_ATTEMPTS} attempts.`);
 };
 
 const formatDate = (date) => {
@@ -43,6 +77,8 @@ const parseIds = (values) =>
 
 module.exports = {
   generateRollNumber,
+  formatRollNumber,
+  resolveEnrollmentYear,
   formatDate,
   calculateAttendancePercentage,
   parseId,

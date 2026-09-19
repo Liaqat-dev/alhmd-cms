@@ -1,8 +1,24 @@
 const bcrypt = require('bcryptjs');
-const { generateRollNumber } = require('../utils/helpers');
+const { generateRollNumber, parseId } = require('../utils/helpers');
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
+
+// An admin may override the generated roll number; it still has to be free.
+const claimCustomRollNumber = async (value, exceptStudentId = null) => {
+  const rollNumber = String(value).trim();
+
+  const taken = await prisma.student.findUnique({
+    where: { rollNumber },
+    select: { id: true }
+  });
+
+  if (taken && taken.id !== exceptStudentId) {
+    throw new AppError(409, { message: `Roll number ${rollNumber} is already assigned to another student.` });
+  }
+
+  return rollNumber;
+};
 
 const getAllStudents = catchAsync(async (req, res) => {
   const { classId, search, status, academicYear, page = 1, limit = 10 } = req.query;
@@ -111,13 +127,29 @@ const createStudent = catchAsync(async (req, res) => {
     throw new AppError(400, { message: 'A class must be selected.' });
   }
 
+  // The class decides the program prefix of the roll number.
+  const studentClass = await prisma.class.findUnique({
+    where: { id: parseId(classId) },
+    select: { program: true }
+  });
+
+  if (!studentClass) {
+    throw new AppError(400, { message: 'The selected class was not found.' });
+  }
+
   // Subject data (no per-subject fee)
   const allSubjectsData = regularSubjectEnrollments.map(se => ({
     subjectId: se.subjectId,
   }));
 
   // Use custom roll number if provided, otherwise auto-generate
-  const rollNumber = customRollNumber || (await generateRollNumber(prisma));
+  const rollNumber = customRollNumber?.trim()
+    ? await claimCustomRollNumber(customRollNumber)
+    : await generateRollNumber(prisma, {
+      program: studentClass.program,
+      academicYear,
+      joiningDate
+    });
   const studentPassword = password || rollNumber;
   const hashedPassword = await bcrypt.hash(studentPassword, 10);
 
@@ -170,6 +202,10 @@ const updateStudent = catchAsync(async (req, res) => {
   const existingStudent = await prisma.student.findUnique({ where: { id: studentId } });
   if (!existingStudent) throw new AppError(404, 'Student not found');
 
+  const nextRollNumber = rollNumber !== undefined
+    ? await claimCustomRollNumber(rollNumber, studentId)
+    : undefined;
+
   const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
 
   // Update personal info (+ password/email if provided)
@@ -185,7 +221,7 @@ const updateStudent = catchAsync(async (req, res) => {
       joiningDate: joiningDate ? new Date(joiningDate) : undefined,
       ...(academicYear !== undefined && { academicYear }),
       ...(status !== undefined && { status }),
-      ...(rollNumber !== undefined && { rollNumber }),
+      ...(nextRollNumber !== undefined && { rollNumber: nextRollNumber }),
       ...(email !== undefined && { email: email || null }),
       ...(hashedPassword && { password: hashedPassword }),
     }
