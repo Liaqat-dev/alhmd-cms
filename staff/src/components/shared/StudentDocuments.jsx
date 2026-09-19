@@ -112,31 +112,33 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
     const busy = uploading || removing
 
     return (
-        <div className={`rounded-lg border p-3 flex items-center gap-3 transition-colors ${
+        <div className={`rounded-lg border p-3 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:gap-3 transition-colors ${
             doc ? 'border-emerald-200 dark:border-emerald-400/25 bg-emerald-50/40 dark:bg-emerald-400/5' : 'border-dashed border-gray-200 dark:border-dark-700'
         }`}>
-            <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
-                doc ? 'bg-emerald-100 dark:bg-emerald-400/15 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 dark:bg-dark-800 text-gray-400 dark:text-dark-500'
-            }`}>
-                {doc ? (isImage(doc.mimeType) ? <ImageIcon className="h-4 w-4"/> : <FileText className="h-4 w-4"/>) : <Upload className="h-4 w-4"/>}
+            <div className="flex items-center gap-3 min-w-0 sm:flex-1">
+                <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
+                    doc ? 'bg-emerald-100 dark:bg-emerald-400/15 text-emerald-600 dark:text-emerald-400' : 'bg-gray-100 dark:bg-dark-800 text-gray-400 dark:text-dark-500'
+                }`}>
+                    {doc ? (isImage(doc.mimeType) ? <ImageIcon className="h-4 w-4"/> : <FileText className="h-4 w-4"/>) : <Upload className="h-4 w-4"/>}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-700 dark:text-dark-200 truncate">{label}</p>
+                    {doc ? (
+                        <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3"/> Uploaded
+                        </p>
+                    ) : (
+                        <p className="text-[11px] text-gray-400 dark:text-dark-500">Not uploaded</p>
+                    )}
+                </div>
             </div>
 
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-700 dark:text-dark-200 truncate">{label}</p>
-                {doc ? (
-                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3"/> Uploaded
-                    </p>
-                ) : (
-                    <p className="text-[11px] text-gray-400 dark:text-dark-500">Not uploaded</p>
-                )}
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center justify-end gap-1.5 shrink-0">
                 {doc && (
                     <button
                         type="button" onClick={handleView} disabled={busy || viewing}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
+                        className="h-9 w-9 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
                         title="View"
                     >
                         {viewing ? <Loader2 className="h-4 w-4 animate-spin"/> : <Eye className="h-4 w-4"/>}
@@ -145,7 +147,7 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
                 {doc && (
                     <button
                         type="button" onClick={handleDownload} disabled={busy || downloading}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
+                        className="h-9 w-9 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
                         title="Download"
                     >
                         {downloading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Download className="h-4 w-4"/>}
@@ -153,14 +155,14 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
                 )}
                 <button
                     type="button" onClick={() => setCameraOpen(true)} disabled={busy}
-                    className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
+                    className="h-9 w-9 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
                     title="Take picture"
                 >
                     <Camera className="h-4 w-4"/>
                 </button>
                 <button
                     type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}
-                    className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-dark-700 text-gray-600 dark:text-dark-300 hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors disabled:opacity-50"
+                    className="h-9 sm:h-8 px-3 sm:px-2.5 flex items-center gap-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-dark-700 text-gray-600 dark:text-dark-300 hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors disabled:opacity-50"
                 >
                     {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Upload className="h-3.5 w-3.5"/>}
                     {doc ? 'Replace' : 'Upload'}
@@ -168,7 +170,7 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
                 {doc && (
                     <button
                         type="button" onClick={handleRemove} disabled={busy}
-                        className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-400/10 transition-colors disabled:opacity-50"
+                        className="h-9 w-9 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-400/10 transition-colors disabled:opacity-50"
                         title="Remove"
                     >
                         {removing ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4"/>}

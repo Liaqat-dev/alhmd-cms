@@ -6,6 +6,10 @@ import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle} from '@/
 
 const JPEG_QUALITY = 0.92
 
+// The preview is sized by the frame itself, so what you see is the whole
+// captured image — never a cropped or shrunken slice of it.
+const MEDIA_CLASS = 'block h-auto max-h-[60vh] w-auto max-w-full sm:max-h-[65vh]'
+
 function errorMessage(err) {
     switch (err?.name) {
         case 'NotAllowedError':
@@ -36,6 +40,7 @@ export default function CameraCapture({open, onOpenChange, title = 'Take Picture
     const [starting, setStarting] = useState(true)
     const [error, setError] = useState(null)
     const [shot, setShot] = useState(null)
+    const [dims, setDims] = useState(null)
 
     const stopStream = useCallback(() => {
         streamRef.current?.getTracks().forEach(t => t.stop())
@@ -77,6 +82,7 @@ export default function CameraCapture({open, onOpenChange, title = 'Take Picture
             stopStream()
             setShot(null)
             setError(null)
+            setDims(null)
             return
         }
         startStream()
@@ -117,16 +123,25 @@ export default function CameraCapture({open, onOpenChange, title = 'Take Picture
 
     return (
         <Dialog open={open} onOpenChange={(next) => { if (!busy) onOpenChange(next) }}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="w-[calc(100%-1.5rem)] max-w-3xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
                 <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
+                    <DialogTitle className="pr-8 text-base sm:text-lg">{title}</DialogTitle>
                 </DialogHeader>
 
-                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-gray-900">
+                <div className="relative flex min-h-[220px] w-full items-center justify-center overflow-hidden rounded-lg bg-gray-900">
                     {shot ? (
-                        <img src={shot} alt="Captured preview" className="h-full w-full object-contain"/>
+                        <img src={shot} alt="Captured preview" className={MEDIA_CLASS}/>
                     ) : (
-                        <video ref={videoRef} playsInline muted className="h-full w-full object-cover"/>
+                        <video
+                            ref={videoRef} playsInline muted className={MEDIA_CLASS}
+                            onLoadedMetadata={(e) => setDims({w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight})}
+                        />
+                    )}
+
+                    {dims && !starting && !error && (
+                        <span className="absolute bottom-2 left-2 rounded bg-black/55 px-1.5 py-0.5 text-[11px] font-medium text-white/85">
+                            {dims.w} × {dims.h}
+                        </span>
                     )}
 
                     {!shot && starting && (
