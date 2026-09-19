@@ -143,7 +143,9 @@ export default function AddStudent() {
                 regularSubjectEnrollments,
             }
             if (isEditing) {
-                await studentsAPI.update(id, payload)
+                // Roll number is permanent once assigned, so it is never sent back.
+                const {rollNumber: _fixedRollNumber, ...updatePayload} = payload
+                await studentsAPI.update(id, updatePayload)
                 await syncExpenses(id)
                 return null
             } else {
@@ -502,7 +504,9 @@ export default function AddStudent() {
                         <div className="flex items-center gap-2 mb-3">
                             <Hash className="h-4 w-4 text-gray-600 dark:text-dark-300"/>
                             <label className="text-sm font-semibold text-gray-700 nowrap dark:text-dark-200">Roll Number</label>
-                            {!isEditing && <span className="text-xs text-gray-500 dark:text-dark-400 font-medium">(Leave blank to auto-generate)</span>}
+                            <span className="text-xs text-gray-500 dark:text-dark-400 font-medium">
+                                {isEditing ? '(Permanent — cannot be changed)' : '(Leave blank to auto-generate)'}
+                            </span>
                         </div>
                         <div className="flex gap-1">
                             <input
@@ -511,15 +515,22 @@ export default function AddStudent() {
                                 value={formik.values.rollNumber || ''}
                                 onChange={(e) => formik.setFieldValue('rollNumber', e.target.value)}
                                 onBlur={formik.handleBlur}
-                                className="flex-1 w-24 rounded-lg border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 px-3 py-2 text-sm font-medium text-gray-800 dark:text-dark-100 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                                readOnly={isEditing}
+                                disabled={isEditing}
+                                aria-readonly={isEditing}
+                                title={isEditing ? 'Roll numbers cannot be changed once a student is created' : undefined}
+                                className={`flex-1 w-24 rounded-lg border border-gray-200 dark:border-dark-700 px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-400/40 ${
+                                    isEditing
+                                        ? 'bg-gray-100 dark:bg-dark-800 text-gray-500 dark:text-dark-400 cursor-not-allowed'
+                                        : 'bg-white dark:bg-dark-900 text-gray-800 dark:text-dark-100'
+                                }`}
                             />
                         </div>
-                        {!isEditing && (
-                            <p className="mt-2 text-xs text-gray-500 dark:text-dark-400">
-                                Assigned on save as program + year + serial, e.g. ICS26-001. The serial runs
-                                in one sequence shared by all programs for the enrollment year.
-                            </p>
-                        )}
+                        <p className="mt-2 text-xs text-gray-500 dark:text-dark-400">
+                            {isEditing
+                                ? 'Roll numbers are permanent. Attendance, challans and documents are filed under this number.'
+                                : 'Assigned on save as program + year + serial, e.g. ICS26-001. The serial runs in one sequence shared by all programs for the enrollment year.'}
+                        </p>
                     </div>
 
                     {/* Enrollment details */}

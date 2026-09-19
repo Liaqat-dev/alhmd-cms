@@ -5,7 +5,7 @@ const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 
 // An admin may override the generated roll number; it still has to be free.
-const claimCustomRollNumber = async (value, exceptStudentId = null) => {
+const claimCustomRollNumber = async (value) => {
   const rollNumber = String(value).trim();
 
   const taken = await prisma.student.findUnique({
@@ -13,7 +13,7 @@ const claimCustomRollNumber = async (value, exceptStudentId = null) => {
     select: { id: true }
   });
 
-  if (taken && taken.id !== exceptStudentId) {
+  if (taken) {
     throw new AppError(409, { message: `Roll number ${rollNumber} is already assigned to another student.` });
   }
 
@@ -202,9 +202,12 @@ const updateStudent = catchAsync(async (req, res) => {
   const existingStudent = await prisma.student.findUnique({ where: { id: studentId } });
   if (!existingStudent) throw new AppError(404, 'Student not found');
 
-  const nextRollNumber = rollNumber !== undefined
-    ? await claimCustomRollNumber(rollNumber, studentId)
-    : undefined;
+  // A roll number is permanent once issued — attendance, challans, documents
+  // and the student's own login all hang off it. Resending the current value
+  // is fine; changing it is not.
+  if (rollNumber !== undefined && String(rollNumber).trim() !== existingStudent.rollNumber) {
+    throw new AppError(400, { message: 'Roll number cannot be changed once the student has been created.' });
+  }
 
   const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
 
@@ -221,7 +224,6 @@ const updateStudent = catchAsync(async (req, res) => {
       joiningDate: joiningDate ? new Date(joiningDate) : undefined,
       ...(academicYear !== undefined && { academicYear }),
       ...(status !== undefined && { status }),
-      ...(nextRollNumber !== undefined && { rollNumber: nextRollNumber }),
       ...(email !== undefined && { email: email || null }),
       ...(hashedPassword && { password: hashedPassword }),
     }
