@@ -2,8 +2,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { attendanceAPI } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Input } from '@/components/ui/input'
-import { Search } from 'lucide-react'
 import AttendanceRegister, {
     MONTHS, YEARS, exportRegisterToExcel,
 } from '@/components/shared/AttendanceRegister'
@@ -84,16 +82,6 @@ export default function TeacherAttendanceRegisterPanel() {
                         </SelectContent>
                     </Select>
                 </div>
-
-                <div className="w-full sm:w-56 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-dark-500 pointer-events-none" />
-                    <Input
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search teacher…"
-                        className="pl-10"
-                    />
-                </div>
             </div>
 
             {/* Register */}
@@ -104,6 +92,9 @@ export default function TeacherAttendanceRegisterPanel() {
                 dates={gridData?.dates || []}
                 rows={rows}
                 loading={loading}
+                search={search}
+                onSearchChange={setSearch}
+                searchPlaceholder="Search teacher…"
                 onExport={downloadExcel}
                 emptyLabel={`No attendance recorded for ${monthLabel} ${year}`}
                 noMatchLabel="No teachers match your search"

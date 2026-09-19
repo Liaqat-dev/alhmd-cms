@@ -135,15 +135,15 @@ export default function AttendanceRegister({
                         </h2>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                     {search !== null && (
-                        <div className="relative">
+                        <div className="relative flex-1 sm:flex-none">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                             <Input
                                 value={search}
                                 onChange={e => onSearchChange?.(e.target.value)}
                                 placeholder={searchPlaceholder}
-                                className="pl-8 h-8 text-xs w-36 sm:w-48"
+                                className="pl-8 h-8 text-xs w-full sm:w-48"
                             />
                         </div>
                     )}
