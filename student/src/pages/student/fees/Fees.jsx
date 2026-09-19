@@ -223,7 +223,7 @@ export default function Fees() {
               ${miscFeeTotal > 0 ? feeRow('Misc. Fee', miscFeeTotal, false) : ''}
               ${Number(challan.arrears) > 0 ? feeRow('Previous Arrears', challan.arrears, true) : ''}
               ${Number(challan.lateFee) > 0 ? feeRow('Late Fee', challan.lateFee, false) : ''}
-              ${Number(challan.discount) > 0 ? feeRow('Discount', -challan.discount, true) : ''}
+              ${Number(challan.discount) > 0 ? feeRow('Concession', -challan.discount, true) : ''}
             </tbody>
           </table>
 

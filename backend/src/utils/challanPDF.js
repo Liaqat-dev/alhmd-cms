@@ -222,7 +222,7 @@ function drawChallanCopy(doc, challan, x, y, colWidth, copyLabel, paymentInfo) {
 
   feeRow('Previous Arrears', challan.arrears, true);
   feeRow('Late Fee', challan.lateFee, false);
-  feeRow('Discount', challan.discount, true);
+  feeRow('Concession', challan.discount, true);
 
   // Total row
   cy += 2;

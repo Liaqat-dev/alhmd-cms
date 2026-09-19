@@ -461,7 +461,7 @@ export default function Fees() {
                         {generateType === 'single' && (
                             <div className="grid grid-cols-2 gap-4">
                                 <FormField
-                                    label="Discount (Rs.)"
+                                    label="Concession (Rs.)"
                                     name="discount"
                                     type="number"
                                     icon={<Banknote className="h-4 w-4"/>}
@@ -602,7 +602,7 @@ export default function Fees() {
                                     </div>
                                 )}
                                 {Number(selectedChallan.discount) > 0 && (
-                                    <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span>- Rs. {Number(selectedChallan.discount).toLocaleString()}</span>
+                                    <div className="flex justify-between"><span className="text-muted-foreground">Concession</span><span>- Rs. {Number(selectedChallan.discount).toLocaleString()}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between font-bold border-t pt-2">
