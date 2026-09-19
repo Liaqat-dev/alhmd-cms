@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { feesAPI } from '@/services/api'
 import { useToast } from '@/hooks/use-toast'
 import { useClasses } from '@/hooks/useClasses'
-import { Calendar, CreditCard, DollarSign, Receipt } from 'lucide-react'
+import { CreditCard } from 'lucide-react'
 import { PagePanel } from '@/components/shared/admin-table.jsx'
+
+const currentYear = new Date().getFullYear()
+const YEARS = [currentYear - 2, currentYear - 1, currentYear]
 
 const MONTHS = [
   { value: 1, label: 'January' }, { value: 2, label: 'February' },
@@ -79,58 +81,18 @@ export default function PaymentHistory() {
     return true
   })
 
-  const totalAmount = filteredPayments.reduce((sum, p) => sum + Number(p.amount), 0)
-
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xs:gap-4">
-        <div className="card p-3 xs:p-5 shadow-sm transition-all hover:shadow-md mb-1">
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/10 to-emerald-600/5">
-              <DollarSign className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-muted-foreground">Total Collected</p>
-              <p className="text-xl font-bold tracking-tight">Rs. {totalAmount.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-3 xs:p-5 shadow-sm transition-all hover:shadow-md mb-1">
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/10 to-blue-600/5">
-              <Receipt className="h-5 w-5 text-blue-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-muted-foreground">Total Transactions</p>
-              <p className="text-xl font-bold tracking-tight">{filteredPayments.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="card p-3 xs:p-5 shadow-sm transition-all hover:shadow-md mb-1">
-          <div className="flex items-center gap-4">
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/10 to-amber-600/5">
-              <CreditCard className="h-5 w-5 text-amber-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-muted-foreground">Avg Payment</p>
-              <p className="text-xl font-bold tracking-tight">Rs. {filteredPayments.length > 0 ? Math.round(totalAmount / filteredPayments.length).toLocaleString() : 0}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <PagePanel
         icon={CreditCard}
         title="Payment History"
         count={filteredPayments.length}
         countLabel="payments"
       >
-        <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-2 mb-6 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
           <Select value={filters.month ? String(filters.month) : "all"}
             onValueChange={(value) => setFilters({ ...filters, month: value === "all" ? '' : parseInt(value) })}>
-            <SelectTrigger className="w-full xs:w-35">
+            <SelectTrigger className="w-full sm:w-35">
               <SelectValue placeholder="All Months" />
             </SelectTrigger>
             <SelectContent>
@@ -141,17 +103,22 @@ export default function PaymentHistory() {
             </SelectContent>
           </Select>
 
-          <Input
-            type="number"
-            value={filters.year}
-            onChange={(e) => setFilters({ ...filters, year: e.target.value ? parseInt(e.target.value) : '' })}
-            className="w-full xs:w-35"
-            placeholder="Year"
-          />
+          <Select value={filters.year ? String(filters.year) : "all"}
+            onValueChange={(value) => setFilters({ ...filters, year: value === "all" ? '' : parseInt(value) })}>
+            <SelectTrigger className="w-full sm:w-35">
+              <SelectValue placeholder="All Years" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {YEARS.map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <Select value={filters.paymentMethod || "all"}
             onValueChange={(value) => setFilters({ ...filters, paymentMethod: value === "all" ? '' : value })}>
-            <SelectTrigger className="w-full xs:w-35">
+            <SelectTrigger className="col-span-2 w-full sm:col-span-1 sm:w-35">
               <SelectValue placeholder="All Methods" />
             </SelectTrigger>
             <SelectContent>

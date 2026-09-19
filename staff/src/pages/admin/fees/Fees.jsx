@@ -1,6 +1,5 @@
 import {useEffect, useState} from 'react'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,} from '@/components/ui/dialog'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table'
@@ -25,6 +24,9 @@ import {
     Users,
 } from 'lucide-react'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
+
+const currentYear = new Date().getFullYear()
+const YEARS = [currentYear - 2, currentYear - 1, currentYear]
 
 const MONTHS = [
     {value: 1, label: 'January'}, {value: 2, label: 'February'},
@@ -226,20 +228,20 @@ export default function Fees() {
     return (
         <div className="space-y-4">
             {statistics && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4  xs:gap-4 ">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 sm:gap-4 lg:grid-cols-4">
                     {statCards.map((stat) => {
                         const Icon = stat.icon
                         return (
                             <div key={stat.label}
-                                 className="card p-3 xs:p-5 shadow-sm transition-all hover:shadow-md mb-1">
-                                <div className="flex items-center gap-4">
+                                 className="card p-3 sm:p-4 shadow-sm transition-all hover:shadow-md">
+                                <div className="flex items-center gap-2.5 sm:gap-4">
                                     <div
-                                        className={`flex h-11 w-11 items-center justify-center rounded-lg bg-gradient-to-br ${stat.gradient} transition-transform group-hover:scale-105`}>
-                                        <Icon className={`h-5 w-5 ${stat.iconColor}`}/>
+                                        className={`flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${stat.gradient} transition-transform group-hover:scale-105`}>
+                                        <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.iconColor}`}/>
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-                                        <p className="text-xl font-bold tracking-tight truncate">{stat.value}</p>
+                                        <p className="text-[10px] sm:text-xs font-medium text-muted-foreground leading-tight">{stat.label}</p>
+                                        <p className="text-base sm:text-xl font-bold tracking-tight truncate leading-tight">{stat.value}</p>
                                     </div>
                                 </div>
                             </div>
@@ -260,30 +262,19 @@ export default function Fees() {
                     setDialogOpen(true)
                 }}
             >
-                <div className="flex flex-wrap items-center gap-3 mb-6">
+                <div className="grid grid-cols-2 gap-2 mb-6 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                     <Select value={filters.classId || "all"}
                             onValueChange={(value) => setFilters({...filters, classId: value === "all" ? "" : value})}>
-                        <SelectTrigger className="w-full  xs:w-35"><SelectValue
+                        <SelectTrigger className="w-full sm:w-35"><SelectValue
                             placeholder="All Classes"/></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Classes</SelectItem>
                             {classes.map((cls) => (<SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>))}
                         </SelectContent>
                     </Select>
-                    <Select value={String(filters.month)}
-                            onValueChange={(value) => setFilters({...filters, month: parseInt(value)})}>
-                        <SelectTrigger className="w-full  xs:w-35"><SelectValue placeholder="Month"/></SelectTrigger>
-                        <SelectContent>
-                            {MONTHS.map((m) => (
-                                <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>))}
-                        </SelectContent>
-                    </Select>
-                    <Input  type="number" value={filters.year}
-                           onChange={(e) => setFilters({...filters, year: parseInt(e.target.value)})} className="w-full  xs:w-35"
-                           placeholder="Year"/>
                     <Select value={filters.status || "all"}
                             onValueChange={(value) => setFilters({...filters, status: value === "all" ? "" : value})}>
-                        <SelectTrigger className="w-full  xs:w-35"><SelectValue
+                        <SelectTrigger className="w-full sm:w-35"><SelectValue
                             placeholder="All Status"/></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Status</SelectItem>
@@ -291,6 +282,21 @@ export default function Fees() {
                             <SelectItem value="PAID">Paid</SelectItem>
                             <SelectItem value="PARTIAL">Partial</SelectItem>
                             <SelectItem value="OVERDUE">Overdue</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={String(filters.month)}
+                            onValueChange={(value) => setFilters({...filters, month: parseInt(value)})}>
+                        <SelectTrigger className="w-full sm:w-35"><SelectValue placeholder="Month"/></SelectTrigger>
+                        <SelectContent>
+                            {MONTHS.map((m) => (
+                                <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>))}
+                        </SelectContent>
+                    </Select>
+                    <Select value={String(filters.year)}
+                            onValueChange={(value) => setFilters({...filters, year: parseInt(value)})}>
+                        <SelectTrigger className="w-full sm:w-35"><SelectValue placeholder="Year"/></SelectTrigger>
+                        <SelectContent>
+                            {YEARS.map((y) => (<SelectItem key={y} value={String(y)}>{y}</SelectItem>))}
                         </SelectContent>
                     </Select>
                 </div>
