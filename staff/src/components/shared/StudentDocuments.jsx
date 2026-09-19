@@ -2,9 +2,10 @@ import {useEffect, useRef, useState} from 'react'
 import {studentsAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {
-    CheckCircle2, Download, Eye, FileText, IdCard, Image as ImageIcon,
+    Camera, CheckCircle2, Download, Eye, FileText, IdCard, Image as ImageIcon,
     Loader2, Trash2, Upload, UserSquare2,
 } from 'lucide-react'
+import CameraCapture from './CameraCapture'
 
 const MAX_FILE_MB = 10
 
@@ -30,25 +31,36 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
     const [removing, setRemoving] = useState(false)
     const [viewing, setViewing] = useState(false)
     const [downloading, setDownloading] = useState(false)
+    const [cameraOpen, setCameraOpen] = useState(false)
 
-    const handleFile = async (e) => {
-        const file = e.target.files?.[0]
-        e.target.value = ''
-        if (!file) return
+    const upload = async (file) => {
         if (file.size > MAX_FILE_MB * 1024 * 1024) {
             toast({variant: 'destructive', title: 'File too large', description: `Max ${MAX_FILE_MB}MB`})
-            return
+            return false
         }
         setUploading(true)
         try {
             await studentsAPI.uploadDocument(studentId, type, file)
             toast({title: 'Uploaded', description: `${label} saved`})
             onChanged()
+            return true
         } catch (err) {
             toast({variant: 'destructive', title: 'Upload failed', description: err.response?.data?.errors?.message || err.response?.data?.message || 'Please try again.'})
+            return false
         } finally {
             setUploading(false)
         }
+    }
+
+    const handleFile = async (e) => {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (!file) return
+        await upload(file)
+    }
+
+    const handleCapture = async (file) => {
+        if (await upload(file)) setCameraOpen(false)
     }
 
     const handleRemove = async () => {
@@ -140,6 +152,13 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
                     </button>
                 )}
                 <button
+                    type="button" onClick={() => setCameraOpen(true)} disabled={busy}
+                    className="h-8 w-8 flex items-center justify-center rounded-lg text-gray-400 dark:text-dark-500 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-400/10 transition-colors disabled:opacity-50"
+                    title="Take picture"
+                >
+                    <Camera className="h-4 w-4"/>
+                </button>
+                <button
                     type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}
                     className="h-8 px-2.5 flex items-center gap-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-dark-700 text-gray-600 dark:text-dark-300 hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors disabled:opacity-50"
                 >
@@ -158,6 +177,15 @@ function DocSlot({studentId, type, label, doc, onChanged}) {
             </div>
 
             <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile}/>
+
+            <CameraCapture
+                open={cameraOpen}
+                onOpenChange={setCameraOpen}
+                title={`Take Picture — ${label}`}
+                fileName={type.toLowerCase()}
+                onCapture={handleCapture}
+                busy={uploading}
+            />
         </div>
     )
 }
