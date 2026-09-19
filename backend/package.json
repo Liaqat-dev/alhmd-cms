@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "db:reset": "node prisma/reset.js",
     "seed": "node prisma/seed.js",
     "seed:classes": "node prisma/seedClassesAndSubjects.js"
   },

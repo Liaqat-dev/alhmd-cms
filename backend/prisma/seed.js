@@ -1,10 +1,14 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const { generateRollNumber } = require('../src/utils/helpers');
 
 const prisma = new PrismaClient();
 const BCRYPT_ROUNDS = 12;
 const currentYear  = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
+
+const ACADEMIC_YEAR = '2025-2026';
+const JOINING_DATE  = '2025-04-01';
 
 function calcGrade(obtained, total) {
   const p = (obtained / total) * 100;
@@ -150,13 +154,16 @@ async function main() {
   // expenses:       [{ type, amount }] ← one-time charges (Admission Fee = registration fee)
   const studentDefs = [
     { name: 'Ali Ahmed',   fatherName: 'Ahmed Khan',    gender: 'MALE',   dob: '2009-05-15', cnic: '35202-1111111-1', school: 'City School',
+      email: 'ali.ahmed.student@gmail.com',
       enrollment: { class: 'ICS-I', fee: 6000 },
       expenses: [{ type: 'ADMISSION_FEE', amount: 2000 }] },
 
     { name: 'Sara Malik',  fatherName: 'Malik Riaz',    gender: 'FEMALE', dob: '2007-08-22', cnic: '35202-2222222-2', school: 'Beaconhouse',
+      email: 'sara.malik.student@gmail.com',
       enrollment: { class: 'ENG-I', fee: 8000 } },
 
     { name: 'Hamza Tariq', fatherName: 'Tariq Mehmood', gender: 'MALE',   dob: '2009-03-10', cnic: '35202-3333333-3', school: 'LGS',
+      email: 'hamza.tariq.student@gmail.com',
       enrollment: { class: 'ICS-I', fee: 6000 },
       expenses: [{ type: 'BOOKS', amount: 1200 }] },
   ];
@@ -164,27 +171,37 @@ async function main() {
   const studentRecs = {}; // name → Student
   for (let i = 0; i < studentDefs.length; i++) {
     const sd = studentDefs[i];
-    const roll = `${String(i + 1).padStart(4, '0')}-${currentYear}`;
-    const email = `${roll}@gmail.com`;
 
-    // Students are no longer backed by a User account — they log in with
-    // rollNumber + password directly. Email is optional (password reset only).
-    const st = await prisma.student.upsert({
-      where: { rollNumber: roll },
-      update: {},
-      create: {
-        rollNumber: roll,
-        password: await bcrypt.hash(roll, BCRYPT_ROUNDS),
-        email,
-        name: sd.name, fatherName: sd.fatherName,
-        dateOfBirth: new Date(sd.dob), gender: sd.gender,
-        cnic: sd.cnic, schoolName: sd.school,
-        address: `House ${i + 1}, Street 5, Lahore`,
-        guardianPhone: `0300${String(1000000 + i)}`, phone: `0301${String(1000000 + i)}`,
-        joiningDate: new Date('2025-04-01'), academicYear: '2025-2026',
-        status: 'ENROLLED',
-      },
-    });
+    // Keyed on email, not roll number: roll numbers are allocated from a
+    // counter, so re-running the seed must not mint a second one for a
+    // student who already exists.
+    let st = await prisma.student.findUnique({ where: { email: sd.email } });
+
+    if (!st) {
+      // Roll number = program prefix + enrollment year + shared serial.
+      const roll = await generateRollNumber(prisma, {
+        program: mCls[sd.enrollment.class].program,
+        academicYear: ACADEMIC_YEAR,
+        joiningDate: JOINING_DATE,
+      });
+
+      // Students are no longer backed by a User account — they log in with
+      // rollNumber + password directly. Email is optional (password reset only).
+      st = await prisma.student.create({
+        data: {
+          rollNumber: roll,
+          password: await bcrypt.hash(roll, BCRYPT_ROUNDS),
+          email: sd.email,
+          name: sd.name, fatherName: sd.fatherName,
+          dateOfBirth: new Date(sd.dob), gender: sd.gender,
+          cnic: sd.cnic, schoolName: sd.school,
+          address: `House ${i + 1}, Street 5, Lahore`,
+          guardianPhone: `0300${String(1000000 + i)}`, phone: `0301${String(1000000 + i)}`,
+          joiningDate: new Date(JOINING_DATE), academicYear: ACADEMIC_YEAR,
+          status: 'ENROLLED',
+        },
+      });
+    }
     studentRecs[sd.name] = st;
 
     // Enrollment + all subjects
@@ -352,7 +369,7 @@ async function main() {
   console.log('\n── Seed complete ──────────────────────────────────────────────────');
   console.log('  Admin    : dev.liaqat13@gmail.com / admin123');
   console.log('  Teachers : 3  (…@gmail.com / teacher123)');
-  console.log(`  Students : 3  Login with rollNumber as password (0001-${currentYear} … 0003-${currentYear}).`);
+  console.log(`  Students : 3  Login with rollNumber as password (${Object.values(studentRecs).map(s => s.rollNumber).join(', ')}).`);
   console.log('  Classes  : ICS-I / ENG-I');
   console.log(`  Timetable: ${mTTDefs.length} slots`);
   console.log('  Exams    : 2 (with marks)');
