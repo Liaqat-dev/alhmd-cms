@@ -17,6 +17,14 @@ const JS_DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY
 const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+// YYYY-MM-DD in local time. toISOString would give the UTC day, which in
+// UTC+5 is still yesterday until 5am — today's card would render disabled.
+const toDateKey = (date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0'),
+].join('-')
+
 function getScheduledDatesInCurrentMonth(scheduledDays) {
   const now = new Date()
   const year = now.getFullYear()
@@ -26,9 +34,7 @@ function getScheduledDatesInCurrentMonth(scheduledDays) {
   for (let d = 1; d <= daysInMonth; d++) {
     const date = new Date(year, month, d)
     if (scheduledDays.includes(JS_DAYS[date.getDay()])) {
-      const mm = String(month + 1).padStart(2, '0')
-      const dd = String(d).padStart(2, '0')
-      result.push(`${year}-${mm}-${dd}`)
+      result.push(toDateKey(date))
     }
   }
   return result
@@ -59,7 +65,7 @@ export default function StudentAttendancePanel() {
     ? myClasses.map(c => ({ id: c.classId, name: c.className }))
     : allClasses
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = toDateKey(new Date())
 
   const lectureDates = useMemo(
     () => scheduledDays.length > 0 ? getScheduledDatesInCurrentMonth(scheduledDays) : [],
