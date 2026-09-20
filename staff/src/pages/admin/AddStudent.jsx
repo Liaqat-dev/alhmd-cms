@@ -28,6 +28,7 @@ import useAppForm from '@/hooks/useAppForm'
 import {FormDate, FormField, FormSelect, ServerError} from '@/components/ui/form-fields'
 import {Tabs, Tab} from '@/components/custom/Tab'
 import StudentDocuments from '@/components/shared/StudentDocuments'
+import {STUDENT_STATUS_OPTIONS} from '@/utils/studentStatus'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -596,10 +597,7 @@ export default function AddStudent() {
                             onChange={formik.handleChange}
                             onBlur={formik.handleBlur}
                             required
-                            options={[
-                                {value: 'ENROLLED', label: 'Enrolled'},
-                                {value: 'PENDING', label: 'Pending'},
-                            ]}
+                            options={STUDENT_STATUS_OPTIONS}
                         />
                     </div>
 

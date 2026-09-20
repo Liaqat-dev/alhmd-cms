@@ -190,7 +190,13 @@ const createStudent = catchAsync(async (req, res) => {
       status: status || 'ENROLLED',
       ...(classId && {
         enrollment: {
-          create: { classId: classId, monthlyFee: monthlyFee ? parseFloat(monthlyFee) : 0 }
+          create: {
+            classId: classId,
+            monthlyFee: monthlyFee ? parseFloat(monthlyFee) : 0,
+            // Backfilling an already-graduated student keeps the class on
+            // record without counting them as an active enrollment.
+            isActive: status !== 'GRADUATED'
+          }
         }
       }),
       ...(allSubjectsData.length > 0 && {
@@ -288,6 +294,27 @@ const updateStudent = catchAsync(async (req, res) => {
       where: { studentId, isActive: true },
       data: { monthlyFee: parseFloat(monthlyFee) }
     });
+  }
+
+  // Graduation keeps every record — enrollment, attendance, challans, marks —
+  // but retires the enrollment so the student stops counting as active, and
+  // cuts off portal access straight away. Runs last so the enrollment rebuild
+  // above can't re-activate a graduate. Reverting the status brings them back.
+  if (status !== undefined && status !== existingStudent.status) {
+    if (status === 'GRADUATED') {
+      await prisma.$transaction([
+        prisma.enrollment.updateMany({ where: { studentId }, data: { isActive: false } }),
+        prisma.refreshToken.updateMany({ where: { studentId, isRevoked: false }, data: { isRevoked: true } }),
+        prisma.passwordReset.deleteMany({ where: { studentId } })
+      ]);
+    } else if (existingStudent.status === 'GRADUATED') {
+      // Un-graduating restores the enrollment, but only if it still has a
+      // class — a class-less enrollment is deliberately inactive.
+      await prisma.enrollment.updateMany({
+        where: { studentId, classId: { not: null } },
+        data: { isActive: true }
+      });
+    }
   }
 
   res.json({ message: 'Student updated successfully', student: studentWithoutPassword });

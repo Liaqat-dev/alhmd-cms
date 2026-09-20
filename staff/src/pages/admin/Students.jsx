@@ -10,6 +10,7 @@ import {GraduationCap, Search} from 'lucide-react'
 import {useClasses} from '@/hooks/useClasses'
 import {ActionButtons, PagePanel, TableEmpty, TablePagination, TableSpinner} from '@/components/shared/admin-table'
 import UserAvatar from '@/components/shared/UserAvatar'
+import {STATUS_BADGE, STATUS_LABEL, STUDENT_STATUS_OPTIONS} from '@/utils/studentStatus'
 
 const currentYear = new Date().getFullYear()
 
@@ -145,8 +146,9 @@ export default function AdminStudents() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">All Status</SelectItem>
-                                    <SelectItem value="ENROLLED">Enrolled</SelectItem>
-                                    <SelectItem value="PENDING">Pending</SelectItem>
+                                    {STUDENT_STATUS_OPTIONS.map(opt => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                             {/*</div>*/}
@@ -229,12 +231,8 @@ export default function AdminStudents() {
                                             </td>
                                             <td className="px-4 py-3 align-middle">
                                             <span
-                                                className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                                                    student.status === 'ENROLLED'
-                                                        ? 'bg-emerald-50 dark:bg-emerald-400/15 text-emerald-700 dark:text-emerald-300 ring-emerald-600/10 dark:ring-emerald-400/20'
-                                                        : 'bg-amber-50 dark:bg-amber-400/15 text-amber-700 dark:text-amber-300 ring-amber-600/10 dark:ring-amber-400/20'
-                                                }`}>
-                                                {student.status === 'ENROLLED' ? 'Enrolled' : 'Pending'}
+                                                className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_BADGE[student.status] || STATUS_BADGE.PENDING}`}>
+                                                {STATUS_LABEL[student.status] || STATUS_LABEL.PENDING}
                                             </span>
                                             </td>
                                             <td className="px-4 py-3 align-middle text-gray-500 dark:text-dark-400">{student.guardianPhone}</td>

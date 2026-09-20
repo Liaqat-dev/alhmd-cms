@@ -9,6 +9,7 @@ import {
     ArrowLeft, BookOpen, Building2, Calendar, CreditCard, GraduationCap,
     Hash, Loader2, Mail, MapPin, Phone, Sun, User,
 } from 'lucide-react'
+import {STATUS_BADGE, STATUS_LABEL} from '@/utils/studentStatus'
 
 function InfoItem({icon: Icon, label, value}) {
     return (
@@ -45,14 +46,9 @@ function ClassBadge({name}) {
 }
 
 function StatusBadge({status}) {
-    const isEnrolled = status === 'ENROLLED'
     return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${
-            isEnrolled
-                ? 'bg-emerald-50 dark:bg-emerald-400/15 text-emerald-700 dark:text-emerald-300 ring-emerald-600/10 dark:ring-emerald-400/20'
-                : 'bg-amber-50 dark:bg-amber-400/15 text-amber-700 dark:text-amber-300 ring-amber-600/10 dark:ring-amber-400/20'
-        }`}>
-            {isEnrolled ? 'Enrolled' : 'Pending'}
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${STATUS_BADGE[status] || STATUS_BADGE.PENDING}`}>
+            {STATUS_LABEL[status] || STATUS_LABEL.PENDING}
         </span>
     )
 }
@@ -193,7 +189,7 @@ export default function AdminStudentProfile() {
                         <InfoItem icon={Hash}          label="Roll Number"      value={student.rollNumber}/>
                         <InfoItem icon={Calendar}      label="Joining Date"     value={joined}/>
                         <InfoItem icon={GraduationCap} label="Academic Year"    value={student.academicYear}/>
-                        <InfoItem icon={GraduationCap} label="Status"           value={student.status ? (student.status === 'ENROLLED' ? 'Enrolled' : 'Pending') : null}/>
+                        <InfoItem icon={GraduationCap} label="Status"           value={student.status ? (STATUS_LABEL[student.status] || student.status) : null}/>
                         <InfoItem icon={CreditCard}    label="Monthly Fee"      value={student.monthlyFee != null ? `PKR ${Number(student.monthlyFee).toLocaleString()}` : null}/>
                         <InfoItem icon={CreditCard}    label="Registration Fee" value={student.registrationFee != null ? `PKR ${Number(student.registrationFee).toLocaleString()}` : null}/>
                     </div>

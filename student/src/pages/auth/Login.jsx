@@ -39,7 +39,8 @@ export default function Login() {
 
             navigate('/')
         } catch (error) {
-            const msg = error.response?.data?.message || 'Invalid credentials'
+            const data = error.response?.data
+            const msg = data?.errors?.message || data?.message || 'Invalid credentials'
             toast({variant: 'destructive', title: 'Login Failed', description: msg})
         } finally {
             setLoading(false)

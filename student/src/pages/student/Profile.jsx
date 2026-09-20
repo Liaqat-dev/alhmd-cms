@@ -26,8 +26,15 @@ function InfoRow({ label, value, icon: Icon }) {
 }
 
 const statusColors = {
-  ENROLLED: 'bg-green-50 text-green-700 border-green-200',
-  PENDING:  'bg-amber-50  text-amber-700  border-amber-200',
+  ENROLLED:  'bg-green-50 text-green-700 border-green-200',
+  PENDING:   'bg-amber-50  text-amber-700  border-amber-200',
+  GRADUATED: 'bg-blue-50   text-blue-700   border-blue-200',
+}
+
+const statusLabels = {
+  ENROLLED:  'Enrolled',
+  PENDING:   'Pending',
+  GRADUATED: 'Graduated',
 }
 
 export default function StudentProfile() {
@@ -117,7 +124,7 @@ export default function StudentProfile() {
                 </span>
                 {details?.status && (
                   <span className={`inline-flex items-center px-2 py-0.5 border rounded-full text-xs font-semibold ${statusColors[details.status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                    {details.status}
+                    {statusLabels[details.status] || details.status}
                   </span>
                 )}
               </div>

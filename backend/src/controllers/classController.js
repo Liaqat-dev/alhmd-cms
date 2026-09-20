@@ -1,6 +1,13 @@
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
+const { parseId } = require('../utils/helpers');
+const { ACTIVE_ENROLLMENT } = require('../utils/enrollment');
+
+// Typed-phrase confirmations. Both operations move every student in a class at
+// once and neither has an undo button, so the client has to echo the word back.
+const CONFIRM_PROMOTE = 'PROMOTE';
+const CONFIRM_GRADUATE = 'GRADUATE';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -37,7 +44,7 @@ const getAllClassesNoBatch = catchAsync(async (req, res) => {
   const classes = await prisma.class.findMany({
     include: {
       subjects: subjectWithTeachers,
-      _count: { select: { enrollments: { where: { isActive: true } } } }
+      _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } }
     },
     orderBy: { name: 'asc' }
   });
@@ -63,7 +70,7 @@ const getAllClasses = catchAsync(async (req, res) => {
 
   const include = {
     subjects: subjectWithTeachers,
-    _count: { select: { enrollments: { where: { isActive: true } } } }
+    _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } }
   };
 
   const classes = await prisma.class.findMany({ where, include, orderBy: { name: 'asc' } });
@@ -84,13 +91,13 @@ const getClassById = catchAsync(async (req, res) => {
   const include = {
     subjects: subjectWithTeachers,
     enrollments: {
-      where: { isActive: true },
+      where: ACTIVE_ENROLLMENT,
       include: {
         student: { select: { id: true, name: true, rollNumber: true } }
       },
       orderBy: { student: { name: 'asc' } }
     },
-    _count: { select: { enrollments: { where: { isActive: true } } } }
+    _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } }
   };
 
   const classData = await prisma.class.findUnique({ where: { id }, include });
@@ -127,7 +134,7 @@ const createClass = catchAsync(async (req, res) => {
 
   const include = {
     subjects: subjectWithTeachers,
-    _count: { select: { enrollments: { where: { isActive: true } } } }
+    _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } }
   };
 
   const newClass = await prisma.class.create({ data, include });
@@ -158,7 +165,7 @@ const updateClass = catchAsync(async (req, res) => {
 
   const include = {
     subjects: subjectWithTeachers,
-    _count: { select: { enrollments: { where: { isActive: true } } } }
+    _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } }
   };
 
   const updatedClass = await prisma.class.update({ where: { id }, data, include });
@@ -181,7 +188,7 @@ const deleteClass = catchAsync(async (req, res) => {
     include: {
       _count: {
         select: {
-          enrollments: { where: { isActive: true } }
+          enrollments: { where: ACTIVE_ENROLLMENT }
         }
       }
     }
@@ -229,6 +236,175 @@ const removeSubject = catchAsync(async (req, res) => {
   res.json({ message: 'Subject removed successfully' });
 });
 
+// ── Promotion & graduation ────────────────────────────────────────────────────
+//
+// A cohort moves through the school in one step: Grade 11 class → an empty
+// Grade 12 class of the same program → graduated. Graduating a Grade 12 class
+// empties it, which is what makes it available as a promotion target again.
+
+// Loads a class along with its active-student count.
+const findClassWithCount = (id) => prisma.class.findUnique({
+  where: { id },
+  include: { _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } } }
+});
+
+// GET /classes/:id/promotion-targets
+// The Grade 12 classes a Grade 11 class may be promoted into: same program,
+// and empty. The source count comes back too so the dialog can tell "nowhere
+// to promote to" apart from "nobody to promote".
+const getPromotionTargets = catchAsync(async (req, res) => {
+  const id = parseId(req.params.id);
+
+  const sourceClass = await findClassWithCount(id);
+  if (!sourceClass) throw new AppError(404, 'Class not found');
+
+  if (sourceClass.gradeLevel !== 'GRADE_11') {
+    throw new AppError(400, { message: 'Only a Grade 11 class can be promoted.' });
+  }
+
+  const candidates = await prisma.class.findMany({
+    where: { gradeLevel: 'GRADE_12', program: sourceClass.program },
+    include: { _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } } },
+    orderBy: { name: 'asc' }
+  });
+
+  res.json({
+    sourceClass: {
+      id: sourceClass.id,
+      name: sourceClass.name,
+      program: sourceClass.program,
+      studentCount: sourceClass._count.enrollments
+    },
+    // An occupied Grade 12 class is deliberately not offered — its students
+    // have to be graduated first, which is the admin's cue to close them out.
+    targets: candidates
+      .filter(c => c._count.enrollments === 0)
+      .map(c => ({ id: c.id, name: c.name, studentLimit: c.studentLimit })),
+    occupiedCount: candidates.filter(c => c._count.enrollments > 0).length
+  });
+});
+
+// POST /classes/:id/promote  { targetClassId, confirm: 'PROMOTE' }
+// Moves every active enrollment across. Roll numbers, fees, challans, marks
+// and attendance are all untouched — attendance rows carry their own classId,
+// so the Grade 11 record stays attached to the Grade 11 class.
+const promoteClass = catchAsync(async (req, res) => {
+  const sourceId = parseId(req.params.id);
+  const { targetClassId, confirm } = req.body;
+
+  if (confirm !== CONFIRM_PROMOTE) {
+    throw new AppError(400, { confirm: `Type ${CONFIRM_PROMOTE} to confirm this promotion.` });
+  }
+
+  const targetId = parseId(targetClassId);
+  if (!targetId || Number.isNaN(targetId)) {
+    throw new AppError(400, { targetClassId: 'Choose the Grade 12 class to promote into.' });
+  }
+  if (targetId === sourceId) {
+    throw new AppError(400, { targetClassId: 'A class cannot be promoted into itself.' });
+  }
+
+  const [sourceClass, targetClass] = await Promise.all([
+    findClassWithCount(sourceId),
+    findClassWithCount(targetId)
+  ]);
+
+  if (!sourceClass) throw new AppError(404, 'Class not found');
+  if (!targetClass) throw new AppError(404, { message: 'The selected Grade 12 class was not found.' });
+
+  // Re-checked here rather than trusted from the dialog: the target could have
+  // been filled by someone else between opening the dialog and confirming.
+  if (sourceClass.gradeLevel !== 'GRADE_11') {
+    throw new AppError(400, { message: 'Only a Grade 11 class can be promoted.' });
+  }
+  if (targetClass.gradeLevel !== 'GRADE_12') {
+    throw new AppError(400, { targetClassId: `${targetClass.name} is not a Grade 12 class.` });
+  }
+  if (targetClass.program !== sourceClass.program) {
+    throw new AppError(400, { targetClassId: `${targetClass.name} is a different program to ${sourceClass.name}.` });
+  }
+  if (targetClass._count.enrollments > 0) {
+    throw new AppError(400, {
+      targetClassId: `${targetClass.name} already has students. Graduate that class first to free it up.`
+    });
+  }
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: sourceId, ...ACTIVE_ENROLLMENT },
+    select: { id: true, studentId: true }
+  });
+
+  if (enrollments.length === 0) {
+    throw new AppError(400, { message: `${sourceClass.name} has no active students to promote.` });
+  }
+
+  const enrollmentIds = enrollments.map(e => e.id);
+  const studentIds = enrollments.map(e => e.studentId);
+
+  await prisma.$transaction([
+    prisma.enrollment.updateMany({ where: { id: { in: enrollmentIds } }, data: { classId: targetId } }),
+    // Subjects are per grade level, so a Grade 11 subject means nothing in a
+    // Grade 12 class. They're cleared rather than guessed at — subjects are
+    // assigned per student on the edit form once the cohort has moved.
+    prisma.studentSubject.deleteMany({ where: { studentId: { in: studentIds } } })
+  ]);
+
+  const n = enrollments.length;
+
+  res.json({
+    message: `Promoted ${n} student${n === 1 ? '' : 's'} from ${sourceClass.name} to ${targetClass.name}. Their subjects need to be assigned again.`,
+    promoted: n,
+    targetClass: { id: targetClass.id, name: targetClass.name }
+  });
+});
+
+// POST /classes/:id/graduate  { confirm: 'GRADUATE' }
+// Closes out a Grade 12 cohort. Every record is kept — this retires the
+// enrollment and ends portal access, it does not delete anything.
+const graduateClass = catchAsync(async (req, res) => {
+  const id = parseId(req.params.id);
+  const { confirm } = req.body;
+
+  if (confirm !== CONFIRM_GRADUATE) {
+    throw new AppError(400, { confirm: `Type ${CONFIRM_GRADUATE} to confirm graduating this class.` });
+  }
+
+  const classData = await prisma.class.findUnique({ where: { id } });
+  if (!classData) throw new AppError(404, 'Class not found');
+
+  if (classData.gradeLevel !== 'GRADE_12') {
+    throw new AppError(400, { message: 'Only a Grade 12 class can be graduated.' });
+  }
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: { classId: id, ...ACTIVE_ENROLLMENT },
+    select: { id: true, studentId: true }
+  });
+
+  if (enrollments.length === 0) {
+    throw new AppError(400, { message: `${classData.name} has no active students to graduate.` });
+  }
+
+  const enrollmentIds = enrollments.map(e => e.id);
+  const studentIds = enrollments.map(e => e.studentId);
+
+  // The same side effects as graduating one student from their profile:
+  // status, retired enrollment, revoked sessions, dead reset links.
+  await prisma.$transaction([
+    prisma.student.updateMany({ where: { id: { in: studentIds } }, data: { status: 'GRADUATED' } }),
+    prisma.enrollment.updateMany({ where: { id: { in: enrollmentIds } }, data: { isActive: false } }),
+    prisma.refreshToken.updateMany({ where: { studentId: { in: studentIds }, isRevoked: false }, data: { isRevoked: true } }),
+    prisma.passwordReset.deleteMany({ where: { studentId: { in: studentIds } } })
+  ]);
+
+  const n = enrollments.length;
+
+  res.json({
+    message: `Graduated ${n} student${n === 1 ? '' : 's'} from ${classData.name}. ${classData.name} is now free to receive a Grade 11 class.`,
+    graduated: n
+  });
+});
+
 module.exports = {
   getAllClassesNoBatch,
   getAllClasses,
@@ -237,5 +413,8 @@ module.exports = {
   updateClass,
   deleteClass,
   addSubject,
-  removeSubject
+  removeSubject,
+  getPromotionTargets,
+  promoteClass,
+  graduateClass
 };

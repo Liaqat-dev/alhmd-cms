@@ -1,18 +1,19 @@
 const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
+const { ACTIVE_ENROLLMENT } = require('../utils/enrollment');
 
 const getAdminStats = catchAsync(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const [totalStudents, totalTeachers, totalClasses, recentEnrollments, classStats, todayAttendance] = await Promise.all([
-    prisma.enrollment.count({ where: { isActive: true } }),
+    prisma.enrollment.count({ where: ACTIVE_ENROLLMENT }),
     prisma.teacher.count(),
     prisma.class.count(),
     prisma.enrollment.findMany({
       take: 5,
-      where: { isActive: true },
+      where: ACTIVE_ENROLLMENT,
       orderBy: { enrolledAt: 'desc' },
       include: {
         student: { select: { id: true, name: true, rollNumber: true, profilePicUrl: true } },
@@ -20,7 +21,7 @@ const getAdminStats = catchAsync(async (req, res) => {
       }
     }),
     prisma.class.findMany({
-      include: { _count: { select: { enrollments: { where: { isActive: true } } } } },
+      include: { _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } } },
       orderBy: { name: 'asc' }
     }),
     prisma.attendance.groupBy({

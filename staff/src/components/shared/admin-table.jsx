@@ -5,6 +5,8 @@
  * TableSpinner  — centered spinner for loading state
  * TableEmpty    — empty-state row spanning all columns
  * ActionButtons — edit + optional extras + delete icon button cluster
+ *                 `extra` may be a node, or a ({close}) => node render prop for
+ *                 items that need to dismiss the menu; `menuWidth` widens it
  * ClassBadge    — small class-name pill
  */
 
@@ -83,7 +85,7 @@ export function TableEmpty({icon: Icon, label, colSpan = 6}) {
 
 // ── ActionButtons ─────────────────────────────────────────────────────────────
 
-export function ActionButtons({onEdit, onDelete, extra}) {
+export function ActionButtons({onEdit, onDelete, extra, menuWidth = 'w-36'}) {
     const [open, setOpen] = useState(false)
     const ref = useRef(null)
 
@@ -108,8 +110,8 @@ export function ActionButtons({onEdit, onDelete, extra}) {
             </Button>
 
             {open && (
-                <div className="absolute right-0 z-50 mt-1 w-36 rounded-lg border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 shadow-lg py-1">
-                    {extra}
+                <div className={cn('absolute right-0 z-50 mt-1 rounded-lg border border-gray-200 dark:border-dark-700 bg-white dark:bg-dark-900 shadow-lg py-1', menuWidth)}>
+                    {typeof extra === 'function' ? extra({close: () => setOpen(false)}) : extra}
                     {onEdit && (
                         <button
                             type="button"

@@ -11,8 +11,10 @@ import useAppForm from '@/hooks/useAppForm'
 import {classesAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {useClasses} from '@/hooks/useClasses'
-import {BookOpen, GraduationCap, Loader2, School, Search, Tag, Users,} from 'lucide-react'
+import {useAuth} from '@/context/AuthContext'
+import {BookOpen, GraduationCap, Loader2, School, Search, Tag, Users, ArrowUpRight, Award,} from 'lucide-react'
 import {ActionButtons, PagePanel, TableEmpty, TableSpinner} from '@/components/shared/admin-table'
+import ConfirmPhraseDialog from '@/components/shared/ConfirmPhraseDialog'
 
 // ── Options ──────────────────────────────────────────────────────────────────
 const GRADE_LEVEL_OPTIONS = [
@@ -42,6 +44,19 @@ const classSchema = Yup.object({
         .required('Student limit is required'),
 })
 
+// Typed-phrase confirmations, matched server-side. Kept verbatim here so the
+// prompt the admin reads is the string that actually has to reach the API.
+const CONFIRM_PROMOTE = 'PROMOTE'
+const CONFIRM_GRADUATE = 'GRADUATE'
+
+// Pull the API's message out of the { errors: { ... } } envelope. Field-keyed
+// errors (targetClassId, confirm) read just as well as a banner here.
+const apiError = (error, fallback) => {
+    const errors = error.response?.data?.errors
+    if (!errors) return fallback
+    return errors.message || Object.values(errors)[0] || fallback
+}
+
 const EMPTY_VALUES = {
     name: '',
     gradeLevel: 'GRADE_11',
@@ -60,6 +75,14 @@ export default function AdminClasses() {
     const [search, setSearch] = useState('')
     const [filterProgram, setFilterProgram] = useState('all')
     const {toast} = useToast()
+    const {hasPermission} = useAuth()
+
+    // Both actions rewrite a whole cohort, so they need class *and* student
+    // rights — the same AND the routes enforce.
+    const canMoveCohort = hasPermission('classes.edit') && hasPermission('students.edit')
+
+    const [promote, setPromote] = useState({open: false, cls: null, loading: false, targets: [], targetId: '', sourceCount: 0, occupied: 0, loadError: null, error: null, submitting: false})
+    const [graduate, setGraduate] = useState({open: false, cls: null, error: null, submitting: false})
 
     // ── useAppForm ───────────────────────────────────────────────────────────────
     const {formik, isSubmitting, serverError, clearServerError} = useAppForm({
@@ -136,6 +159,78 @@ export default function AdminClasses() {
         setDialogOpen(true)
     }
 
+    // ── Promote a Grade 11 cohort into an empty Grade 12 class ──────────────────
+    const openPromote = async (cls) => {
+        setPromote({open: true, cls, loading: true, targets: [], targetId: '', sourceCount: 0, occupied: 0, loadError: null, error: null, submitting: false})
+        try {
+            const {data} = await classesAPI.getPromotionTargets(cls.id)
+            setPromote(p => ({
+                ...p,
+                loading: false,
+                targets: data.targets,
+                // One eligible class is the common case — preselect it so the
+                // admin only has the confirmation left to do.
+                targetId: data.targets.length === 1 ? String(data.targets[0].id) : '',
+                sourceCount: data.sourceClass.studentCount,
+                occupied: data.occupiedCount,
+            }))
+        } catch (error) {
+            // Nothing can be confirmed if we don't know the targets, so this
+            // blocks the dialog rather than sitting above a dead form.
+            setPromote(p => ({...p, loading: false, loadError: apiError(error, 'Could not load the Grade 12 classes. Try again.')}))
+        }
+    }
+
+    const submitPromote = async () => {
+        setPromote(p => ({...p, submitting: true, error: null}))
+        try {
+            const {data} = await classesAPI.promote(promote.cls.id, {
+                targetClassId: Number(promote.targetId),
+                confirm: CONFIRM_PROMOTE,
+            })
+            toast({title: 'Class promoted', description: data.message})
+            setPromote(p => ({...p, open: false, submitting: false}))
+            fetchClasses()
+            refreshGlobalClasses()
+        } catch (error) {
+            setPromote(p => ({...p, submitting: false, error: apiError(error, 'Failed to promote this class.')}))
+        }
+    }
+
+    // ── Graduate a Grade 12 cohort ──────────────────────────────────────────────
+    const openGraduate = (cls) => setGraduate({open: true, cls, error: null, submitting: false})
+
+    const submitGraduate = async () => {
+        setGraduate(g => ({...g, submitting: true, error: null}))
+        try {
+            const {data} = await classesAPI.graduate(graduate.cls.id, {confirm: CONFIRM_GRADUATE})
+            toast({title: 'Class graduated', description: data.message})
+            setGraduate(g => ({...g, open: false, submitting: false}))
+            fetchClasses()
+            refreshGlobalClasses()
+        } catch (error) {
+            setGraduate(g => ({...g, submitting: false, error: apiError(error, 'Failed to graduate this class.')}))
+        }
+    }
+
+    // Why the promote dialog can't go ahead, if it can't. Order matters: an
+    // empty source class is the admin's own mistake, no free Grade 12 class is
+    // a prerequisite they have to go and satisfy elsewhere.
+    const promoteBlockedReason = () => {
+        if (!promote.cls || promote.loading) return null
+        if (promote.loadError) return promote.loadError
+        if (promote.sourceCount === 0) {
+            return `${promote.cls?.name} has no active students to promote.`
+        }
+        if (promote.targets.length === 0) {
+            const program = PROGRAM_LABELS[promote.cls?.program] || promote.cls?.program
+            return promote.occupied > 0
+                ? `Every Grade 12 ${program} class already has students in it. Graduate one of them first — that frees it up to receive this class.`
+                : `There is no Grade 12 ${program} class to promote into. Create one first, or graduate an existing one to free it up.`
+        }
+        return null
+    }
+
     const handleDelete = async (id) => {
         if (!window.confirm('Are you sure you want to delete this class?')) return
         try {
@@ -147,7 +242,7 @@ export default function AdminClasses() {
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: error.response?.data?.message || 'Failed to delete class',
+                description: apiError(error, 'Failed to delete class'),
             })
         }
     }
@@ -226,6 +321,28 @@ export default function AdminClasses() {
                                         </td>
                                         <td className="px-4 py-3 align-middle">
                                             <ActionButtons
+                                                menuWidth="w-48"
+                                                extra={canMoveCohort ? ({close}) => (
+                                                    cls.gradeLevel === 'GRADE_11' ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { close(); openPromote(cls) }}
+                                                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-dark-200 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                                                        >
+                                                            <ArrowUpRight className="h-3.5 w-3.5 text-gray-400 dark:text-dark-500"/>
+                                                            Promote to Grade 12
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { close(); openGraduate(cls) }}
+                                                            className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-dark-200 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
+                                                        >
+                                                            <Award className="h-3.5 w-3.5 text-gray-400 dark:text-dark-500"/>
+                                                            Mark as graduated
+                                                        </button>
+                                                    )
+                                                ) : null}
                                                 onEdit={() => handleOpenDialog(cls)}
                                                 onDelete={() => handleDelete(cls.id)}
                                             />
@@ -327,6 +444,72 @@ export default function AdminClasses() {
                     </form>
                 </DialogContent>
             </Dialog>
+            {/* ── Promote to Grade 12 ── */}
+            <ConfirmPhraseDialog
+                open={promote.open}
+                onOpenChange={(open) => setPromote(p => ({...p, open}))}
+                title={`Promote ${promote.cls?.name || ''} to Grade 12`}
+                description={
+                    promote.loading
+                        ? 'Checking which Grade 12 classes are free…'
+                        : `Every active student moves across with their roll number, fee and full history intact. Their subject enrollments are cleared, because Grade 11 subjects don't carry over — assign Grade 12 subjects afterwards.`
+                }
+                phrase={CONFIRM_PROMOTE}
+                actionLabel="Promote class"
+                loading={promote.submitting || promote.loading}
+                canConfirm={Boolean(promote.targetId)}
+                blocked={promoteBlockedReason()}
+                error={promote.error}
+                onDismissError={() => setPromote(p => ({...p, error: null}))}
+                onConfirm={submitPromote}
+            >
+                {promote.loading ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-dark-500 py-2">
+                        <Loader2 className="h-4 w-4 animate-spin"/>
+                        Loading…
+                    </div>
+                ) : (
+                    <div className="space-y-1.5">
+                        <label className="block text-sm text-gray-600 dark:text-dark-300">
+                            Promote {promote.sourceCount} student{promote.sourceCount === 1 ? '' : 's'} into
+                        </label>
+                        <Select
+                            value={promote.targetId}
+                            onValueChange={(val) => setPromote(p => ({...p, targetId: val}))}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Choose a Grade 12 class"/>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {promote.targets.map(t => (
+                                    <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-400 dark:text-dark-500">
+                            Only empty Grade 12 classes of the same program can receive a cohort.
+                        </p>
+                    </div>
+                )}
+            </ConfirmPhraseDialog>
+
+            {/* ── Graduate a Grade 12 class ── */}
+            <ConfirmPhraseDialog
+                open={graduate.open}
+                onOpenChange={(open) => setGraduate(g => ({...g, open}))}
+                title={`Graduate ${graduate.cls?.name || ''}`}
+                description={`All ${graduate.cls?._count?.students ?? 0} active student${graduate.cls?._count?.students === 1 ? '' : 's'} in ${graduate.cls?.name || 'this class'} will be marked as graduated. Their records stay in full, but they stop counting as active students and can no longer sign in to the student portal. ${graduate.cls?.name || 'The class'} is then free to receive a Grade 11 class.`}
+                phrase={CONFIRM_GRADUATE}
+                actionLabel="Graduate class"
+                destructive
+                loading={graduate.submitting}
+                blocked={graduate.cls && (graduate.cls._count?.students ?? 0) === 0
+                    ? `${graduate.cls.name} has no active students to graduate.`
+                    : null}
+                error={graduate.error}
+                onDismissError={() => setGraduate(g => ({...g, error: null}))}
+                onConfirm={submitGraduate}
+            />
         </DashboardLayout>
     )
 }
