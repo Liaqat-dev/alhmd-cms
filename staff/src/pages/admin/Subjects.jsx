@@ -5,9 +5,10 @@ import {Button} from '@/components/ui/button'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from '@/components/ui/select'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '@/components/ui/table'
 import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,} from '@/components/ui/dialog'
+import {useTeachers} from '@/hooks/useTeachers'
 import {subjectsAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
-import {BookOpen, GraduationCap, Layers, Loader2, Pencil, School, Trash2} from 'lucide-react'
+import {BookOpen, GraduationCap, Layers, Loader2, Pencil, School, Trash2, User} from 'lucide-react'
 import {useClasses} from '@/hooks/useClasses'
 import useAppForm from '@/hooks/useAppForm'
 import {FormField, FormSelect, ServerError} from '@/components/ui/form-fields'
@@ -21,6 +22,7 @@ const GRADE_LEVEL_LABELS = Object.fromEntries(GRADE_LEVEL_OPTIONS.map(o => [o.va
 
 export default function AdminSubjects() {
     const {classes} = useClasses()
+    const {teachers} = useTeachers()
     const [subjects, setSubjects] = useState([])
     const [loading, setLoading] = useState(true)
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -70,7 +72,7 @@ export default function AdminSubjects() {
         serverError: singleError,
         clearServerError: clearSingleError,
     } = useAppForm({
-        initialValues: {name: '', gradeLevel: 'GRADE_11', classIds: []},
+        initialValues: {name: '', gradeLevel: 'GRADE_11', classIds: [], teacherId: 'none'},
         validationSchema: singleSchema,
         onSubmit: async (values) => {
             if (editingSubject) {
@@ -92,6 +94,11 @@ export default function AdminSubjects() {
     })
 
     // Classes available for the currently selected grade level
+    const teacherOptions = [
+        {value: 'none', label: 'No teacher assigned'},
+        ...teachers.map(t => ({value: String(t.id), label: t.name})),
+    ]
+
     const classesForGradeLevel = classes.filter(c => c.gradeLevel === singleFormik.values.gradeLevel)
 
     const handleGradeLevelChange = (e) => {
@@ -121,11 +128,14 @@ export default function AdminSubjects() {
                     name: subject.name,
                     gradeLevel: subject.gradeLevel,
                     classIds: subject.classIds || (subject.classes || []).map(c => c.id),
+                    // Older rows can carry several teachers; the picker starts
+                    // empty in that case rather than guessing which one stays.
+                    teacherId: subject.teacherId ? String(subject.teacherId) : 'none',
                 },
             })
         } else {
             setEditingSubject(null)
-            singleFormik.resetForm({values: {name: '', gradeLevel: 'GRADE_11', classIds: []}})
+            singleFormik.resetForm({values: {name: '', gradeLevel: 'GRADE_11', classIds: [], teacherId: 'none'}})
         }
         setDialogOpen(true)
     }
@@ -233,6 +243,7 @@ export default function AdminSubjects() {
                                 <TableRow className="bg-muted/40">
                                     <TableHead className="font-semibold">Subject Name</TableHead>
                                     <TableHead className="font-semibold">Classes</TableHead>
+                                    <TableHead className="font-semibold">Teacher</TableHead>
                                     <TableHead className="font-semibold">Students</TableHead>
                                     <TableHead className="font-semibold">Actions</TableHead>
                                 </TableRow>
@@ -265,6 +276,20 @@ export default function AdminSubjects() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
+                                            {(subject.teachers || []).length === 0 ? (
+                                                <span className="text-xs text-muted-foreground">Unassigned</span>
+                                            ) : (
+                                                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                                    {subject.teachers.map(t => (
+                                                        <span key={t.id}
+                                                            className="inline-flex items-center rounded-md bg-violet-50 text-violet-700 ring-1 ring-inset ring-violet-600/10 px-2 py-0.5 text-xs font-medium dark:bg-violet-400/15 dark:text-violet-300 dark:ring-violet-400/20">
+                                                            {t.name}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
                           <span
                               className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium">
                             {subject._count?.students || 0}
@@ -294,7 +319,7 @@ export default function AdminSubjects() {
                                 ))}
                                 {subjects.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="h-32">
+                                        <TableCell colSpan={6} className="h-32">
                                             <div className="flex flex-col items-center justify-center gap-2">
                                                 <div className="rounded-full bg-muted p-3">
                                                     <BookOpen className="h-5 w-5 text-muted-foreground"/>
@@ -341,6 +366,21 @@ export default function AdminSubjects() {
                             options={GRADE_LEVEL_OPTIONS}
                             required
                         />
+                        <FormSelect
+                            label="Teacher"
+                            name="teacherId"
+                            icon={<User className="h-4 w-4"/>}
+                            value={singleFormik.values.teacherId}
+                            onChange={singleFormik.handleChange}
+                            onBlur={singleFormik.handleBlur}
+                            options={teacherOptions}
+                        />
+                        {editingSubject && (editingSubject.teachers || []).length > 1 && (
+                            <p className="-mt-2 text-xs text-amber-600 dark:text-amber-400">
+                                {editingSubject.teachers.map(t => t.name).join(', ')} are all assigned to this
+                                subject. Saving keeps only the one chosen above.
+                            </p>
+                        )}
                         <div>
                             <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-dark-400 mb-1.5">
                                 Classes

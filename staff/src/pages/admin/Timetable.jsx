@@ -12,6 +12,7 @@ import {BookOpen, Calendar, Clock, GraduationCap, Pencil, Plus, Trash2, User, Us
 import {useClasses} from '@/hooks/useClasses'
 import {useTeachers} from '@/hooks/useTeachers'
 import {PagePanel} from "@/components/shared/admin-table.jsx";
+import {cn} from '@/lib/utils'
 
 const DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
 const DAY_LABELS = {
@@ -51,9 +52,17 @@ const apiError = (error, fallback) => {
 }
 
 // ── Lecture dialog ────────────────────────────────────────────────────────────
-// Shared by both tabs. A lecture always belongs to a class and may name a
-// teacher, so whichever of the two the tab is already scoped to is fixed, and
-// the other is picked here.
+// Shared by both tabs. A lecture always belongs to a class, and who teaches it
+// follows from the subject — so the teacher is never typed in here, it is
+// derived:
+//
+//   Class tab    pick a subject, and its teacher fills in, read-only.
+//   Teacher tab  the teacher is already chosen, so only the subjects they
+//                teach in the picked class are offered.
+//
+// A subject is meant to have one teacher. Rows created before that rule was
+// enforced can still name several, and the field says so rather than picking
+// one at random.
 
 function LectureDialog({
                            open,
@@ -70,6 +79,7 @@ function LectureDialog({
     // each open remounts with a fresh form rather than leaking the last one.
     const [formData, setFormData] = useState(initialForm)
     const [subjects, setSubjects] = useState([])
+    const [loadingSubjects, setLoadingSubjects] = useState(false)
     const [saving, setSaving] = useState(false)
     const {toast} = useToast()
 
@@ -78,18 +88,54 @@ function LectureDialog({
     // endpoint does not accept a classId, so the picker locks while editing.
     const classLocked = Boolean(fixedClassId) || Boolean(editingEntry)
 
-    // Subjects belong to a class, so the list follows whichever class is chosen.
+    // Subjects belong to a class, so the list follows whichever class is
+    // chosen. Each one carries its teachers, which is what the teacher field
+    // below is derived from.
     useEffect(() => {
         if (!open || !classId) {
             setSubjects([])
             return
         }
         let cancelled = false
+        setLoadingSubjects(true)
         subjectsAPI.getAll({classId})
             .then(res => { if (!cancelled) setSubjects(res.data.subjects || []) })
             .catch(() => { if (!cancelled) setSubjects([]) })
+            .finally(() => { if (!cancelled) setLoadingSubjects(false) })
         return () => { cancelled = true }
     }, [open, classId])
+
+    // On the teacher tab only this teacher's subjects can be scheduled.
+    const offeredSubjects = fixedTeacherId
+        ? subjects.filter(sub => (sub.teachers || []).some(t => sameId(t.id, fixedTeacherId)))
+        : subjects
+
+    const chosenSubject = subjects.find(sub => sameId(sub.id, formData.subjectId))
+    const subjectTeachers = chosenSubject?.teachers || []
+
+    // Who ends up on the lecture. The teacher tab pins its own teacher; other-
+    // wise it is the subject's, when the subject has exactly one.
+    const derivedTeacherId = fixedTeacherId
+        ? fixedTeacherId
+        : (subjectTeachers.length === 1 ? subjectTeachers[0].id : null)
+
+    const teacherNote = () => {
+        if (fixedTeacherId) return null
+        if (!formData.subjectId) return 'Pick a subject and its teacher fills in here.'
+        if (subjectTeachers.length === 0) return 'No teacher is assigned to this subject yet — set one on the Subjects page.'
+        if (subjectTeachers.length > 1) {
+            return `${subjectTeachers.map(t => t.name).join(', ')} are all assigned to this subject. Give it a single teacher on the Subjects page.`
+        }
+        return null
+    }
+
+    const teacherValue = fixedTeacherId
+        ? (teachers || []).find(t => sameId(t.id, fixedTeacherId))?.name || ''
+        : subjectTeachers.length === 1
+            ? subjectTeachers[0].name
+            : subjectTeachers.length > 1
+                ? subjectTeachers.map(t => t.name).join(', ')
+                : ''
 
     const handleClassChange = (value) => {
         // The chosen subject belongs to the old class, so it cannot survive.
@@ -110,7 +156,7 @@ function LectureDialog({
 
         setSaving(true)
         try {
-            const teacherId = formData.teacherId && formData.teacherId !== 'none' ? formData.teacherId : null
+            const teacherId = derivedTeacherId ?? null
             const data = {
                 subjectId: formData.subjectId,
                 teacherId,
@@ -141,6 +187,9 @@ function LectureDialog({
     }
 
     const selectedClass = classes?.find(c => sameId(c.id, classId))
+    const fixedTeacherName = fixedTeacherId
+        ? (teachers || []).find(t => sameId(t.id, fixedTeacherId))?.name
+        : null
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -192,39 +241,41 @@ function LectureDialog({
                         <Select
                             value={formData.subjectId ? String(formData.subjectId) : ''}
                             onValueChange={(v) => setFormData({...formData, subjectId: v})}
-                            disabled={!classId}
+                            disabled={!classId || offeredSubjects.length === 0}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder={classId ? 'Select subject' : 'Pick a class first'}/>
                             </SelectTrigger>
                             <SelectContent>
-                                {subjects.map((subject) => (
+                                {offeredSubjects.map((subject) => (
                                     <SelectItem key={subject.id} value={String(subject.id)}>{subject.name}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
-                        {classId && subjects.length === 0 && (
-                            <p className="text-xs text-muted-foreground">
-                                This class has no subjects yet. Add them on the Subjects page.
+                        {classId && !loadingSubjects && offeredSubjects.length === 0 && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                                {subjects.length === 0
+                                    ? 'This class has no subjects yet. Add them on the Subjects page.'
+                                    : `${fixedTeacherName || 'This teacher'} is not teaching any subject in ${selectedClass?.name || 'this class'}. Assign one on the Subjects page or on their profile.`}
                             </p>
                         )}
                     </div>
 
                     <div className="space-y-2">
                         <Label>Teacher</Label>
-                        <Select
-                            value={formData.teacherId ? String(formData.teacherId) : ''}
-                            onValueChange={(v) => setFormData({...formData, teacherId: v})}
-                            disabled={Boolean(fixedTeacherId)}
-                        >
-                            <SelectTrigger><SelectValue placeholder="Select teacher (optional)"/></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="none">No teacher assigned</SelectItem>
-                                {(teachers || []).map((teacher) => (
-                                    <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {/* Never typed in: it comes from the subject, or from the
+                            teacher whose timetable this is. */}
+                        <Input value={teacherValue} placeholder="—" readOnly disabled/>
+                        {teacherNote() && (
+                            <p className={cn(
+                                'text-xs',
+                                subjectTeachers.length > 1 || (formData.subjectId && subjectTeachers.length === 0)
+                                    ? 'text-amber-600 dark:text-amber-400'
+                                    : 'text-muted-foreground'
+                            )}>
+                                {teacherNote()}
+                            </p>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
