@@ -4,10 +4,7 @@ const catchAsync = require('../utils/catchAsync');
 const { ACTIVE_ENROLLMENT } = require('../utils/enrollment');
 
 const getAdminStats = catchAsync(async (req, res) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const [totalStudents, passedOutStudents, totalTeachers, totalClasses, classStats, todayAttendance] = await Promise.all([
+  const [totalStudents, passedOutStudents, totalTeachers, totalClasses, classStats] = await Promise.all([
     prisma.enrollment.count({ where: ACTIVE_ENROLLMENT }),
     // Counted off Student, not Enrollment: an alumnus who was never enrolled
     // in a class still belongs in this total, and the two never double-count
@@ -19,21 +16,10 @@ const getAdminStats = catchAsync(async (req, res) => {
       include: { _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } } },
       orderBy: { name: 'asc' }
     }),
-    prisma.attendance.groupBy({
-      by: ['status'],
-      where: { date: today },
-      _count: { status: true }
-    })
   ]);
 
-  const attendanceOverview = {
-    present: todayAttendance.find(a => a.status === 'PRESENT')?._count.status || 0,
-    absent:  todayAttendance.find(a => a.status === 'ABSENT')?._count.status  || 0,
-    leave:   todayAttendance.find(a => a.status === 'LEAVE')?._count.status   || 0
-  };
-
   res.json({
-    stats: { totalStudents, passedOutStudents, totalTeachers, totalClasses, todayAttendance: attendanceOverview },
+    stats: { totalStudents, passedOutStudents, totalTeachers, totalClasses },
     classStats: classStats.map(c => ({
       id: c.id, name: c.name, gradeLevel: c.gradeLevel, studentCount: c._count.enrollments
     }))

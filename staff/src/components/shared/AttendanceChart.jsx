@@ -1,5 +1,8 @@
 /**
- * AttendanceWeekChart — attendance over the last 7 days, as 100% stacked columns.
+ * AttendanceChart — attendance over the last 7 days, as 100% stacked columns.
+ *
+ * Shared by the admin and teacher dashboards: the caller supplies the data and
+ * the card chrome, so each page keeps its own surface.
  *
  * Colour is doing a *status* job here, not an identity one, so the three fills
  * come from the fixed status palette (good / warning / critical) rather than a
@@ -182,7 +185,7 @@ const GRADE_SCOPES = [
     {value: 'GRADE_12', label: 'Grade 12'},
 ]
 
-export default function AttendanceWeekChart({days = [], classes = [], classId, scopeLabel, scopeClassCount, daysFromTimetable = true, onClassChange, loading}) {
+export default function AttendanceChart({days = [], classes = [], classId, scopeLabel, scopeClassCount, daysFromTimetable = true, onClassChange, loading}) {
     const [hovered, setHovered] = useState(null)
     // A tapped column pins its tooltip open; hover alone is not available on
     // touch, and a tooltip that vanishes on lift is unreadable.

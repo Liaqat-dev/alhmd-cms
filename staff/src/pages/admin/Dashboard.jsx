@@ -4,16 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { dashboardAPI } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
-import AttendanceWeekChart from '@/components/shared/AttendanceWeekChart'
+import AttendanceChart from '@/components/shared/AttendanceChart'
 import {
   Users,
   GraduationCap,
   Award,
   School,
-  CheckCircle2,
-  XCircle,
-  Palmtree,
-  TrendingUp,
   CalendarDays,
   ClipboardCheck,
 } from 'lucide-react'
@@ -167,7 +163,6 @@ export default function AdminDashboard() {
     ...(stats?.classStats?.map(c => c.studentCount) ?? [0])
   )
 
-  const attendance = stats?.stats?.todayAttendance ?? { present: 0, absent: 0, leave: 0 }
 
   return (
     <DashboardLayout title="Dashboard">
@@ -194,7 +189,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label="Total Students"
             value={stats?.stats?.totalStudents ?? 0}
@@ -223,39 +218,6 @@ export default function AdminDashboard() {
             iconBg="bg-sky-500/10 dark:bg-sky-500/15"
             iconColor="text-sky-600 dark:text-sky-400"
           />
-
-          {/* Attendance card — custom layout, and wide enough for three figures */}
-          <StatCard
-            className="sm:col-span-2 lg:col-span-4 xl:col-span-2"
-            label="Today's Attendance"
-            icon={TrendingUp}
-            iconBg="bg-emerald-500/10 dark:bg-emerald-500/15"
-            iconColor="text-emerald-600 dark:text-emerald-400"
-          >
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                  {attendance.present}
-                </span>
-                <span className="text-xs text-gray-400 dark:text-dark-500">Present</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <XCircle className="h-4 w-4 text-red-500" />
-                <span className="text-xl font-bold text-red-500 dark:text-red-400 tabular-nums">
-                  {attendance.absent}
-                </span>
-                <span className="text-xs text-gray-400 dark:text-dark-500">Absent</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Palmtree className="h-4 w-4 text-amber-500" />
-                <span className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-                  {attendance.leave}
-                </span>
-                <span className="text-xs text-gray-400 dark:text-dark-500">Leave</span>
-              </span>
-            </div>
-          </StatCard>
         </div>
 
         {/* Detail Panels */}
@@ -324,7 +286,7 @@ export default function AdminDashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <AttendanceWeekChart
+              <AttendanceChart
                 days={week?.days ?? []}
                 classes={week?.classes ?? []}
                 classId={weekClassId ?? week?.classId}
