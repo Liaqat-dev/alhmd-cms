@@ -7,8 +7,12 @@ const getAdminStats = catchAsync(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [totalStudents, totalTeachers, totalClasses, recentEnrollments, classStats, todayAttendance] = await Promise.all([
+  const [totalStudents, passedOutStudents, totalTeachers, totalClasses, recentEnrollments, classStats, todayAttendance] = await Promise.all([
     prisma.enrollment.count({ where: ACTIVE_ENROLLMENT }),
+    // Counted off Student, not Enrollment: an alumnus who was never enrolled
+    // in a class still belongs in this total, and the two never double-count
+    // because ACTIVE_ENROLLMENT excludes exactly this status.
+    prisma.student.count({ where: { status: 'PASSED_OUT' } }),
     prisma.teacher.count(),
     prisma.class.count(),
     prisma.enrollment.findMany({
@@ -38,7 +42,7 @@ const getAdminStats = catchAsync(async (req, res) => {
   };
 
   res.json({
-    stats: { totalStudents, totalTeachers, totalClasses, todayAttendance: attendanceOverview },
+    stats: { totalStudents, passedOutStudents, totalTeachers, totalClasses, todayAttendance: attendanceOverview },
     recentStudents: recentEnrollments.map(e => ({
       id: e.student.id,
       name: e.student.name,

@@ -23,7 +23,7 @@ enum Gender {
 enum StudentStatus {
   ENROLLED
   PENDING
-  GRADUATED
+  PASSED_OUT
 }
 
 enum ClassProgram {
@@ -325,6 +325,12 @@ model Student {
   joiningDate        DateTime
   academicYear       String        @default("2025-2026")
   status             StudentStatus @default(ENROLLED)
+  // Degree hand-over. Only meaningful once the student has passed out, and
+  // only editable then — kept if the status is ever reverted rather than
+  // thrown away, since re-entering it would mean chasing the paperwork again.
+  degreeReceived     Boolean       @default(false)
+  degreeReceivedAt   DateTime?
+  degreeReceivedBy   String?
   registrationDate   DateTime      @default(now())
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt

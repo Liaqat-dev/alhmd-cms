@@ -8,6 +8,7 @@ import UserAvatar from '@/components/shared/UserAvatar'
 import {
   Users,
   GraduationCap,
+  Award,
   School,
   CheckCircle2,
   XCircle,
@@ -57,14 +58,15 @@ function DashboardSkeleton() {
 
 // ── Stat Card ─────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon: Icon, iconBg, iconColor, children }) {
+function StatCard({ label, value, icon: Icon, iconBg, iconColor, className, children }) {
   return (
     <div className={cn(
       'rounded-xl border border-gray-100 dark:border-dark-800',
       'bg-white dark:bg-dark-900',
       'p-2 xs:p-3 shadow-sm shadow-gray-100/50 dark:shadow-none',
       'hover:shadow-md dark:hover:shadow-none hover:border-gray-200 dark:hover:border-dark-700',
-      'transition-all duration-200'
+      'transition-all duration-200',
+      className
     )}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -166,7 +168,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
           <StatCard
             label="Total Students"
             value={stats?.stats?.totalStudents ?? 0}
@@ -188,9 +190,17 @@ export default function AdminDashboard() {
             iconBg="bg-amber-500/10 dark:bg-amber-500/15"
             iconColor="text-amber-600 dark:text-amber-400"
           />
-
-          {/* Attendance card — custom layout */}
           <StatCard
+            label="Passed Out"
+            value={stats?.stats?.passedOutStudents ?? 0}
+            icon={Award}
+            iconBg="bg-sky-500/10 dark:bg-sky-500/15"
+            iconColor="text-sky-600 dark:text-sky-400"
+          />
+
+          {/* Attendance card — custom layout, and wide enough for three figures */}
+          <StatCard
+            className="sm:col-span-2 lg:col-span-4 xl:col-span-2"
             label="Today's Attendance"
             icon={TrendingUp}
             iconBg="bg-emerald-500/10 dark:bg-emerald-500/15"

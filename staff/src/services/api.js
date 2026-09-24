@@ -150,7 +150,7 @@ export const classesAPI = {
   delete: (id) => api.delete(`/classes/${id}`),
   getPromotionTargets: (id) => api.get(`/classes/${id}/promotion-targets`),
   promote: (id, data) => api.post(`/classes/${id}/promote`, data),
-  graduate: (id, data) => api.post(`/classes/${id}/graduate`, data),
+  passOut: (id, data) => api.post(`/classes/${id}/pass-out`, data),
   addSubject: (id, data) => api.post(`/classes/${id}/subjects`, data),
   removeSubject: (subjectId) => api.delete(`/classes/subjects/${subjectId}`),
 }

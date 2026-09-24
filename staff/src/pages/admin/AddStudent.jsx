@@ -7,6 +7,7 @@ import {classesAPI, studentsAPI, studentExpensesAPI} from '@/services/api'
 import {useToast} from '@/hooks/use-toast'
 import {
     ArrowLeft,
+    Award,
     BookOpen,
     Building2,
     Calendar,
@@ -75,6 +76,10 @@ const initialStudentValues = {
     joiningDate: new Date().toISOString().split('T')[0],
     academicYear: defaultAcademicYear,
     status: 'ENROLLED',
+    // Degree hand-over — only editable once the status is Passed Out.
+    degreeReceived: false,
+    degreeReceivedAt: '',
+    degreeReceivedBy: '',
     password: '',
 }
 
@@ -115,6 +120,16 @@ export default function AddStudent() {
         joiningDate: Yup.string().required('Joining date is required'),
         academicYear: Yup.string().required('Academic year is required'),
         status: Yup.string().required('Status is required'),
+        degreeReceivedBy: Yup.string().when(['status', 'degreeReceived'], {
+            is: (status, received) => status === 'PASSED_OUT' && received === true,
+            then: (schema) => schema.trim().required('Record who collected the degree'),
+            otherwise: (schema) => schema,
+        }),
+        degreeReceivedAt: Yup.string().when(['status', 'degreeReceived'], {
+            is: (status, received) => status === 'PASSED_OUT' && received === true,
+            then: (schema) => schema.required('Record when the degree was collected'),
+            otherwise: (schema) => schema,
+        }),
         password: Yup.string().test(
             'min-if-set',
             'Minimum 8 characters',
@@ -251,6 +266,9 @@ export default function AddStudent() {
                     joiningDate: student.joiningDate?.split('T')[0] || '',
                     academicYear: student.academicYear || defaultAcademicYear,
                     status: student.status || 'ENROLLED',
+                    degreeReceived: student.degreeReceived ?? false,
+                    degreeReceivedAt: student.degreeReceivedAt?.split('T')[0] || '',
+                    degreeReceivedBy: student.degreeReceivedBy || '',
                     password: '',
                 },
             })
@@ -600,6 +618,70 @@ export default function AddStudent() {
                             options={STUDENT_STATUS_OPTIONS}
                         />
                     </div>
+
+                    {/* ── Degree hand-over ──
+                        Locked until the student has passed out: there is no
+                        degree to hand over before then. */}
+                    {formik.values.status === 'PASSED_OUT' && (
+                        <div className="rounded-xl border border-blue-200 dark:border-blue-400/25 overflow-hidden">
+                            <div className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 dark:bg-blue-400/8 border-b border-blue-200 dark:border-blue-400/25">
+                                <Award className="h-4 w-4 text-blue-500 shrink-0"/>
+                                <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">Degree</span>
+                            </div>
+                            <div className="p-4 space-y-4">
+                                <label className="flex items-center gap-2.5 cursor-pointer w-fit">
+                                    <input
+                                        type="checkbox"
+                                        name="degreeReceived"
+                                        checked={formik.values.degreeReceived}
+                                        onChange={(e) => {
+                                            formik.setFieldValue('degreeReceived', e.target.checked)
+                                            // Clearing the details with the tick keeps the form
+                                            // honest: no collection date without a collection.
+                                            if (!e.target.checked) {
+                                                formik.setFieldValue('degreeReceivedAt', '')
+                                                formik.setFieldValue('degreeReceivedBy', '')
+                                            }
+                                        }}
+                                        className="h-4 w-4 rounded border-gray-300 dark:border-dark-600 text-primary-600 focus:ring-2 focus:ring-primary-500/30 cursor-pointer"
+                                    />
+                                    <span className="text-sm font-medium text-gray-700 dark:text-dark-200">
+                                        Degree received
+                                    </span>
+                                </label>
+
+                                {formik.values.degreeReceived && (
+                                    <div className="flex flex-wrap gap-3">
+                                        <div className="min-w-32 flex-1">
+                                            <FormDate
+                                                label="Received On"
+                                                name="degreeReceivedAt"
+                                                icon={<Calendar className="h-4 w-4"/>}
+                                                value={formik.values.degreeReceivedAt}
+                                                error={formik.touched.degreeReceivedAt && formik.errors.degreeReceivedAt}
+                                                onChange={formik.handleChange}
+                                                onBlur={formik.handleBlur}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="min-w-32 flex-1">
+                                            <FormField
+                                                label="Received By"
+                                                name="degreeReceivedBy"
+                                                icon={<User className="h-4 w-4"/>}
+                                                placeholder="e.g., father, or the student"
+                                                value={formik.values.degreeReceivedBy}
+                                                error={formik.touched.degreeReceivedBy && formik.errors.degreeReceivedBy}
+                                                onChange={formik.handleChange}
+                                                onBlur={formik.handleBlur}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* ── Classes ── */}
                     {allClasses.length > 0 && (

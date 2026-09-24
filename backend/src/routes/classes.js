@@ -18,14 +18,14 @@ router.post('/', requirePermission('classes.create'), classController.createClas
 router.put('/:id', requirePermission('classes.edit'), classController.updateClass);
 router.delete('/:id', requirePermission('classes.delete'), classController.deleteClass);
 
-// Promotion & graduation — both rewrite a whole cohort's enrollments, so they
+// Promotion & passing out — both rewrite a whole cohort's enrollments, so they
 // need class AND student rights. Chaining two requirePermission calls gives
 // the AND; a single call is any-of. (An ADMIN passes both regardless.)
 const canMoveCohort = [requirePermission('classes.edit'), requirePermission('students.edit')];
 
 router.get('/:id/promotion-targets', ...canMoveCohort, classController.getPromotionTargets);
 router.post('/:id/promote', ...canMoveCohort, classController.promoteClass);
-router.post('/:id/graduate', ...canMoveCohort, classController.graduateClass);
+router.post('/:id/pass-out', ...canMoveCohort, classController.passOutClass);
 
 // Subject management (legacy — not used by the current UI, kept admin-only)
 router.post('/:id/subjects', roleCheck('ADMIN'), classController.addSubject);

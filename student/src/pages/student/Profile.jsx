@@ -28,13 +28,13 @@ function InfoRow({ label, value, icon: Icon }) {
 const statusColors = {
   ENROLLED:  'bg-green-50 text-green-700 border-green-200',
   PENDING:   'bg-amber-50  text-amber-700  border-amber-200',
-  GRADUATED: 'bg-blue-50   text-blue-700   border-blue-200',
+  PASSED_OUT: 'bg-blue-50   text-blue-700   border-blue-200',
 }
 
 const statusLabels = {
   ENROLLED:  'Enrolled',
   PENDING:   'Pending',
-  GRADUATED: 'Graduated',
+  PASSED_OUT: 'Passed Out',
 }
 
 export default function StudentProfile() {

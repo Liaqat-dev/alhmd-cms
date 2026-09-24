@@ -6,7 +6,7 @@ import {useToast} from '@/hooks/use-toast'
 import UserAvatar from '@/components/shared/UserAvatar'
 import {Button} from '@/components/ui/button'
 import {
-    ArrowLeft, BookOpen, Building2, Calendar, CreditCard, GraduationCap,
+    ArrowLeft, Award, BookOpen, Building2, Calendar, CreditCard, GraduationCap,
     Hash, Loader2, Mail, MapPin, Phone, Sun, User,
 } from 'lucide-react'
 import {STATUS_BADGE, STATUS_LABEL} from '@/utils/studentStatus'
@@ -111,6 +111,9 @@ export default function AdminStudentProfile() {
     const joined = student.joiningDate
         ? new Date(student.joiningDate).toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric'})
         : null
+    const degreeReceivedOn = student.degreeReceivedAt
+        ? new Date(student.degreeReceivedAt).toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric'})
+        : null
 
     // Enrollment — resolve name from map since the API only returns the ID
     const regularName = student.regularClassId ? classMap[student.regularClassId]?.name : null
@@ -192,6 +195,18 @@ export default function AdminStudentProfile() {
                         <InfoItem icon={GraduationCap} label="Status"           value={student.status ? (STATUS_LABEL[student.status] || student.status) : null}/>
                         <InfoItem icon={CreditCard}    label="Monthly Fee"      value={student.monthlyFee != null ? `PKR ${Number(student.monthlyFee).toLocaleString()}` : null}/>
                         <InfoItem icon={CreditCard}    label="Registration Fee" value={student.registrationFee != null ? `PKR ${Number(student.registrationFee).toLocaleString()}` : null}/>
+                        {/* Only meaningful once the student has passed out. */}
+                        {student.status === 'PASSED_OUT' && (
+                            <>
+                                <InfoItem icon={Award}    label="Degree"         value={student.degreeReceived ? 'Received' : 'Not collected yet'}/>
+                                {student.degreeReceived && (
+                                    <>
+                                        <InfoItem icon={Calendar} label="Received On" value={degreeReceivedOn}/>
+                                        <InfoItem icon={User}     label="Received By" value={student.degreeReceivedBy}/>
+                                    </>
+                                )}
+                            </>
+                        )}
                     </div>
                 </Section>
 

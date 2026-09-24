@@ -1,4 +1,8 @@
 const PDFDocument = require('pdfkit');
+
+// Enum values are not printable copy — PASSED_OUT would reach the page with
+// its underscore showing.
+const STUDENT_STATUS_LABELS = { ENROLLED: 'Enrolled', PENDING: 'Pending', PASSED_OUT: 'Passed Out' };
 const path = require('path');
 const fs = require('fs');
 
@@ -93,7 +97,7 @@ function generateReportPDF(report, subjects, outputStream) {
   field('Class', report.student?.class?.name, 2, 0);
   field("Father's Name", report.student?.fatherName, 0, 1);
   field('Academic Year', report.student?.academicYear, 1, 1);
-  field('Status', report.student?.status || 'ENROLLED', 2, 1);
+  field('Status', STUDENT_STATUS_LABELS[report.student?.status] || STUDENT_STATUS_LABELS.ENROLLED, 2, 1);
 
   cy += 78 + 16;
 

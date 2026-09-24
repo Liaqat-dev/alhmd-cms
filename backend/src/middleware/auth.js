@@ -45,11 +45,11 @@ const auth = catchAsync(async (req, res, next) => {
       return res.status(401).json({ message: 'Student not found', code: 'USER_NOT_FOUND' });
     }
 
-    // Graduating a student ends their portal access immediately, even if they
+    // Passing a student out ends their portal access immediately, even if they
     // are holding an access token that hasn't expired yet. 401 (not 403) so the
     // frontend runs its usual refresh-then-logout path.
-    if (student.status === 'GRADUATED') {
-      return res.status(401).json({ message: 'Account is no longer active', code: 'ACCOUNT_GRADUATED' });
+    if (student.status === 'PASSED_OUT') {
+      return res.status(401).json({ message: 'Account is no longer active', code: 'ACCOUNT_PASSED_OUT' });
     }
 
     req.user = { id: student.id, role: 'STUDENT', email: student.email, student };

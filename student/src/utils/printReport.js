@@ -1,6 +1,15 @@
 import logo from '@/images/logo.png'
 import { INSTITUTE_NAME } from '@shared/config/institute'
 
+// Enum values are not printable copy — PASSED_OUT would reach the page with
+// its underscore showing.
+const STATUS_LABELS = {
+    ENROLLED: 'Enrolled',
+    PENDING: 'Pending',
+    PASSED_OUT: 'Passed Out',
+}
+const statusLabel = (s) => STATUS_LABELS[s] || STATUS_LABELS.ENROLLED
+
 const MONTHS = [
     {value: 1, label: 'January'},
     {value: 2, label: 'February'},
@@ -209,7 +218,7 @@ export function printReport(report, subjects = []) {
       <div class="student-field"><label>Class</label><span>${report.student?.class?.name || '—'}</span></div>
       <div class="student-field"><label>Father's Name</label><span>${report.student?.fatherName || '—'}</span></div>
       <div class="student-field"><label>Academic Year</label><span>${report.student?.academicYear || '—'}</span></div>
-      <div class="student-field"><label>Status</label><span>${report.student?.status || 'ENROLLED'}</span></div>
+      <div class="student-field"><label>Status</label><span>${statusLabel(report.student?.status)}</span></div>
     </div>
   </div>
 

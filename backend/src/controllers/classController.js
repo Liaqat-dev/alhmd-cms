@@ -7,7 +7,7 @@ const { ACTIVE_ENROLLMENT } = require('../utils/enrollment');
 // Typed-phrase confirmations. Both operations move every student in a class at
 // once and neither has an undo button, so the client has to echo the word back.
 const CONFIRM_PROMOTE = 'PROMOTE';
-const CONFIRM_GRADUATE = 'GRADUATE';
+const CONFIRM_PASS_OUT = 'PASSOUT';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -236,10 +236,10 @@ const removeSubject = catchAsync(async (req, res) => {
   res.json({ message: 'Subject removed successfully' });
 });
 
-// ── Promotion & graduation ────────────────────────────────────────────────────
+// ── Promotion & passing out ───────────────────────────────────────────────────
 //
 // A cohort moves through the school in one step: Grade 11 class → an empty
-// Grade 12 class of the same program → graduated. Graduating a Grade 12 class
+// Grade 12 class of the same program → passed out. Passing out a Grade 12 class
 // empties it, which is what makes it available as a promotion target again.
 
 // Loads a class along with its active-student count.
@@ -276,7 +276,7 @@ const getPromotionTargets = catchAsync(async (req, res) => {
       studentCount: sourceClass._count.enrollments
     },
     // An occupied Grade 12 class is deliberately not offered — its students
-    // have to be graduated first, which is the admin's cue to close them out.
+    // have to be passed out first, which is the admin's cue to close them out.
     targets: candidates
       .filter(c => c._count.enrollments === 0)
       .map(c => ({ id: c.id, name: c.name, studentLimit: c.studentLimit })),
@@ -325,7 +325,7 @@ const promoteClass = catchAsync(async (req, res) => {
   }
   if (targetClass._count.enrollments > 0) {
     throw new AppError(400, {
-      targetClassId: `${targetClass.name} already has students. Graduate that class first to free it up.`
+      targetClassId: `${targetClass.name} already has students. Pass that class out first to free it up.`
     });
   }
 
@@ -358,22 +358,22 @@ const promoteClass = catchAsync(async (req, res) => {
   });
 });
 
-// POST /classes/:id/graduate  { confirm: 'GRADUATE' }
+// POST /classes/:id/pass-out  { confirm: 'PASSOUT' }
 // Closes out a Grade 12 cohort. Every record is kept — this retires the
 // enrollment and ends portal access, it does not delete anything.
-const graduateClass = catchAsync(async (req, res) => {
+const passOutClass = catchAsync(async (req, res) => {
   const id = parseId(req.params.id);
   const { confirm } = req.body;
 
-  if (confirm !== CONFIRM_GRADUATE) {
-    throw new AppError(400, { confirm: `Type ${CONFIRM_GRADUATE} to confirm graduating this class.` });
+  if (confirm !== CONFIRM_PASS_OUT) {
+    throw new AppError(400, { confirm: `Type ${CONFIRM_PASS_OUT} to confirm passing this class out.` });
   }
 
   const classData = await prisma.class.findUnique({ where: { id } });
   if (!classData) throw new AppError(404, 'Class not found');
 
   if (classData.gradeLevel !== 'GRADE_12') {
-    throw new AppError(400, { message: 'Only a Grade 12 class can be graduated.' });
+    throw new AppError(400, { message: 'Only a Grade 12 class can be passed out.' });
   }
 
   const enrollments = await prisma.enrollment.findMany({
@@ -382,16 +382,16 @@ const graduateClass = catchAsync(async (req, res) => {
   });
 
   if (enrollments.length === 0) {
-    throw new AppError(400, { message: `${classData.name} has no active students to graduate.` });
+    throw new AppError(400, { message: `${classData.name} has no active students to pass out.` });
   }
 
   const enrollmentIds = enrollments.map(e => e.id);
   const studentIds = enrollments.map(e => e.studentId);
 
-  // The same side effects as graduating one student from their profile:
+  // The same side effects as passing out one student from their profile:
   // status, retired enrollment, revoked sessions, dead reset links.
   await prisma.$transaction([
-    prisma.student.updateMany({ where: { id: { in: studentIds } }, data: { status: 'GRADUATED' } }),
+    prisma.student.updateMany({ where: { id: { in: studentIds } }, data: { status: 'PASSED_OUT' } }),
     prisma.enrollment.updateMany({ where: { id: { in: enrollmentIds } }, data: { isActive: false } }),
     prisma.refreshToken.updateMany({ where: { studentId: { in: studentIds }, isRevoked: false }, data: { isRevoked: true } }),
     prisma.passwordReset.deleteMany({ where: { studentId: { in: studentIds } } })
@@ -400,8 +400,8 @@ const graduateClass = catchAsync(async (req, res) => {
   const n = enrollments.length;
 
   res.json({
-    message: `Graduated ${n} student${n === 1 ? '' : 's'} from ${classData.name}. ${classData.name} is now free to receive a Grade 11 class.`,
-    graduated: n
+    message: `Passed out ${n} student${n === 1 ? '' : 's'} from ${classData.name}. ${classData.name} is now free to receive a Grade 11 class.`,
+    passedOut: n
   });
 });
 
@@ -416,5 +416,5 @@ module.exports = {
   removeSubject,
   getPromotionTargets,
   promoteClass,
-  graduateClass
+  passOutClass
 };

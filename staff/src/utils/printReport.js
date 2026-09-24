@@ -1,5 +1,6 @@
 import logo from '@/images/logo.png'
 import { INSTITUTE_NAME } from '@shared/config/institute'
+import { STATUS_LABEL } from '@/utils/studentStatus'
 
 const MONTHS = [
     {value: 1, label: 'January'},
@@ -209,7 +210,7 @@ export function printReport(report, subjects = []) {
       <div class="student-field"><label>Class</label><span>${report.student?.class?.name || '—'}</span></div>
       <div class="student-field"><label>Father's Name</label><span>${report.student?.fatherName || '—'}</span></div>
       <div class="student-field"><label>Academic Year</label><span>${report.student?.academicYear || '—'}</span></div>
-      <div class="student-field"><label>Status</label><span>${report.student?.status || 'ENROLLED'}</span></div>
+      <div class="student-field"><label>Status</label><span>${STATUS_LABEL[report.student?.status] || STATUS_LABEL.ENROLLED}</span></div>
     </div>
   </div>
 

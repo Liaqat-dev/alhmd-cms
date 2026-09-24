@@ -47,7 +47,7 @@ const classSchema = Yup.object({
 // Typed-phrase confirmations, matched server-side. Kept verbatim here so the
 // prompt the admin reads is the string that actually has to reach the API.
 const CONFIRM_PROMOTE = 'PROMOTE'
-const CONFIRM_GRADUATE = 'GRADUATE'
+const CONFIRM_PASS_OUT = 'PASSOUT'
 
 // Pull the API's message out of the { errors: { ... } } envelope. Field-keyed
 // errors (targetClassId, confirm) read just as well as a banner here.
@@ -82,7 +82,7 @@ export default function AdminClasses() {
     const canMoveCohort = hasPermission('classes.edit') && hasPermission('students.edit')
 
     const [promote, setPromote] = useState({open: false, cls: null, loading: false, targets: [], targetId: '', sourceCount: 0, occupied: 0, loadError: null, error: null, submitting: false})
-    const [graduate, setGraduate] = useState({open: false, cls: null, error: null, submitting: false})
+    const [passOut, setPassOut] = useState({open: false, cls: null, error: null, submitting: false})
 
     // ── useAppForm ───────────────────────────────────────────────────────────────
     const {formik, isSubmitting, serverError, clearServerError} = useAppForm({
@@ -197,19 +197,19 @@ export default function AdminClasses() {
         }
     }
 
-    // ── Graduate a Grade 12 cohort ──────────────────────────────────────────────
-    const openGraduate = (cls) => setGraduate({open: true, cls, error: null, submitting: false})
+    // ── Pass a Grade 12 cohort out ──────────────────────────────────────────────
+    const openPassOut = (cls) => setPassOut({open: true, cls, error: null, submitting: false})
 
-    const submitGraduate = async () => {
-        setGraduate(g => ({...g, submitting: true, error: null}))
+    const submitPassOut = async () => {
+        setPassOut(g => ({...g, submitting: true, error: null}))
         try {
-            const {data} = await classesAPI.graduate(graduate.cls.id, {confirm: CONFIRM_GRADUATE})
-            toast({title: 'Class graduated', description: data.message})
-            setGraduate(g => ({...g, open: false, submitting: false}))
+            const {data} = await classesAPI.passOut(passOut.cls.id, {confirm: CONFIRM_PASS_OUT})
+            toast({title: 'Class passed out', description: data.message})
+            setPassOut(g => ({...g, open: false, submitting: false}))
             fetchClasses()
             refreshGlobalClasses()
         } catch (error) {
-            setGraduate(g => ({...g, submitting: false, error: apiError(error, 'Failed to graduate this class.')}))
+            setPassOut(g => ({...g, submitting: false, error: apiError(error, 'Failed to pass this class out.')}))
         }
     }
 
@@ -225,8 +225,8 @@ export default function AdminClasses() {
         if (promote.targets.length === 0) {
             const program = PROGRAM_LABELS[promote.cls?.program] || promote.cls?.program
             return promote.occupied > 0
-                ? `Every Grade 12 ${program} class already has students in it. Graduate one of them first — that frees it up to receive this class.`
-                : `There is no Grade 12 ${program} class to promote into. Create one first, or graduate an existing one to free it up.`
+                ? `Every Grade 12 ${program} class already has students in it. Pass one of them out first — that frees it up to receive this class.`
+                : `There is no Grade 12 ${program} class to promote into. Create one first, or pass an existing one out to free it up.`
         }
         return null
     }
@@ -335,11 +335,11 @@ export default function AdminClasses() {
                                                     ) : (
                                                         <button
                                                             type="button"
-                                                            onClick={() => { close(); openGraduate(cls) }}
+                                                            onClick={() => { close(); openPassOut(cls) }}
                                                             className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-gray-700 dark:text-dark-200 hover:bg-gray-100 dark:hover:bg-dark-800 transition-colors"
                                                         >
                                                             <Award className="h-3.5 w-3.5 text-gray-400 dark:text-dark-500"/>
-                                                            Mark as graduated
+                                                            Mark as passed out
                                                         </button>
                                                     )
                                                 ) : null}
@@ -493,22 +493,22 @@ export default function AdminClasses() {
                 )}
             </ConfirmPhraseDialog>
 
-            {/* ── Graduate a Grade 12 class ── */}
+            {/* ── Pass a Grade 12 class out ── */}
             <ConfirmPhraseDialog
-                open={graduate.open}
-                onOpenChange={(open) => setGraduate(g => ({...g, open}))}
-                title={`Graduate ${graduate.cls?.name || ''}`}
-                description={`All ${graduate.cls?._count?.students ?? 0} active student${graduate.cls?._count?.students === 1 ? '' : 's'} in ${graduate.cls?.name || 'this class'} will be marked as graduated. Their records stay in full, but they stop counting as active students and can no longer sign in to the student portal. ${graduate.cls?.name || 'The class'} is then free to receive a Grade 11 class.`}
-                phrase={CONFIRM_GRADUATE}
-                actionLabel="Graduate class"
+                open={passOut.open}
+                onOpenChange={(open) => setPassOut(g => ({...g, open}))}
+                title={`Pass out ${passOut.cls?.name || ''}`}
+                description={`All ${passOut.cls?._count?.students ?? 0} active student${passOut.cls?._count?.students === 1 ? '' : 's'} in ${passOut.cls?.name || 'this class'} will be marked as passed out. Their records stay in full, but they stop counting as active students and can no longer sign in to the student portal. ${passOut.cls?.name || 'The class'} is then free to receive a Grade 11 class.`}
+                phrase={CONFIRM_PASS_OUT}
+                actionLabel="Pass class out"
                 destructive
-                loading={graduate.submitting}
-                blocked={graduate.cls && (graduate.cls._count?.students ?? 0) === 0
-                    ? `${graduate.cls.name} has no active students to graduate.`
+                loading={passOut.submitting}
+                blocked={passOut.cls && (passOut.cls._count?.students ?? 0) === 0
+                    ? `${passOut.cls.name} has no active students to pass out.`
                     : null}
-                error={graduate.error}
-                onDismissError={() => setGraduate(g => ({...g, error: null}))}
-                onConfirm={submitGraduate}
+                error={passOut.error}
+                onDismissError={() => setPassOut(g => ({...g, error: null}))}
+                onConfirm={submitPassOut}
             />
         </DashboardLayout>
     )

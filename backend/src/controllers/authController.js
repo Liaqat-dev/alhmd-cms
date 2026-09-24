@@ -176,13 +176,13 @@ const studentLogin = catchAsync(async (req, res) => {
         throw new AppError(401, {message: 'Invalid credentials'});
     }
 
-    // A graduated student keeps their full record but loses portal access.
+    // A passed-out student keeps their full record but loses portal access.
     // Checked after the password so it can't be used to probe roll numbers.
-    if (student.status === 'GRADUATED') {
+    if (student.status === 'PASSED_OUT') {
         throw new AppError(
             403,
-            {message: 'This account has graduated and no longer has access to the student portal.'},
-            'ACCOUNT_GRADUATED',
+            {message: 'This account has passed out and no longer has access to the student portal.'},
+            'ACCOUNT_PASSED_OUT',
         );
     }
 
@@ -325,7 +325,7 @@ const runRefresh = async (req, res, {cookieName, expectStudent}) => {
 
     if (expectStudent) {
         const student = await prisma.student.findUnique({where: {id: storedToken.studentId}});
-        if (!student || student.status === 'GRADUATED') {
+        if (!student || student.status === 'PASSED_OUT') {
             clearRefreshCookie(res, cookieName);
             throw new AppError(401, {message: 'Account not active'}, 'ACCOUNT_INACTIVE');
         }
@@ -569,9 +569,9 @@ const studentForgotPassword = catchAsync(async (req, res) => {
 
     const student = await prisma.student.findUnique({ where: { email } });
 
-    // Always respond identically to prevent user enumeration. A graduated
+    // Always respond identically to prevent user enumeration. A passed-out
     // student is treated as non-existent here — there is nothing to log into.
-    if (!student || student.status === 'GRADUATED') {
+    if (!student || student.status === 'PASSED_OUT') {
         return res.json({ message: successMsg });
     }
 

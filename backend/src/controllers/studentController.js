@@ -4,6 +4,28 @@ const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 
+// Degree hand-over only applies to a student who has passed out, and the date
+// and recipient only apply once the degree is actually marked as received.
+// Anything else is dropped rather than stored, so the record can't end up
+// claiming an enrolled student collected a degree on some date.
+const normaliseDegreeFields = ({ status, degreeReceived, degreeReceivedAt, degreeReceivedBy }) => {
+  if (status !== 'PASSED_OUT') return {};
+  // Absent means "not part of this update" — a partial save from elsewhere
+  // must not silently un-receive a degree that was already recorded.
+  if (degreeReceived === undefined) return {};
+
+  const received = degreeReceived === true || degreeReceived === 'true';
+  if (!received) {
+    return { degreeReceived: false, degreeReceivedAt: null, degreeReceivedBy: null };
+  }
+
+  return {
+    degreeReceived: true,
+    degreeReceivedAt: degreeReceivedAt ? new Date(degreeReceivedAt) : null,
+    degreeReceivedBy: degreeReceivedBy ? String(degreeReceivedBy).trim() || null : null
+  };
+};
+
 // An admin may override the generated roll number; it still has to be free.
 const claimCustomRollNumber = async (value) => {
   const rollNumber = String(value).trim();
@@ -188,14 +210,15 @@ const createStudent = catchAsync(async (req, res) => {
       joiningDate: new Date(joiningDate),
       academicYear: academicYear || '2025-2026',
       status: status || 'ENROLLED',
+      ...normaliseDegreeFields({ ...req.body, status: status || 'ENROLLED' }),
       ...(classId && {
         enrollment: {
           create: {
             classId: classId,
             monthlyFee: monthlyFee ? parseFloat(monthlyFee) : 0,
-            // Backfilling an already-graduated student keeps the class on
+            // Backfilling an already-passed-out student keeps the class on
             // record without counting them as an active enrollment.
-            isActive: status !== 'GRADUATED'
+            isActive: status !== 'PASSED_OUT'
           }
         }
       }),
@@ -253,6 +276,9 @@ const updateStudent = catchAsync(async (req, res) => {
       joiningDate: joiningDate ? new Date(joiningDate) : undefined,
       ...(academicYear !== undefined && { academicYear }),
       ...(status !== undefined && { status }),
+      // Keyed off the status being saved now, not the one on record — the two
+      // arrive in the same request when an admin passes a student out.
+      ...normaliseDegreeFields({ ...req.body, status: status !== undefined ? status : existingStudent.status }),
       ...(email !== undefined && { email: email || null }),
       ...(hashedPassword && { password: hashedPassword }),
     }
@@ -296,19 +322,19 @@ const updateStudent = catchAsync(async (req, res) => {
     });
   }
 
-  // Graduation keeps every record — enrollment, attendance, challans, marks —
+  // Passing out keeps every record — enrollment, attendance, challans, marks —
   // but retires the enrollment so the student stops counting as active, and
   // cuts off portal access straight away. Runs last so the enrollment rebuild
-  // above can't re-activate a graduate. Reverting the status brings them back.
+  // above can't re-activate them. Reverting the status brings them back.
   if (status !== undefined && status !== existingStudent.status) {
-    if (status === 'GRADUATED') {
+    if (status === 'PASSED_OUT') {
       await prisma.$transaction([
         prisma.enrollment.updateMany({ where: { studentId }, data: { isActive: false } }),
         prisma.refreshToken.updateMany({ where: { studentId, isRevoked: false }, data: { isRevoked: true } }),
         prisma.passwordReset.deleteMany({ where: { studentId } })
       ]);
-    } else if (existingStudent.status === 'GRADUATED') {
-      // Un-graduating restores the enrollment, but only if it still has a
+    } else if (existingStudent.status === 'PASSED_OUT') {
+      // Reverting restores the enrollment, but only if it still has a
       // class — a class-less enrollment is deliberately inactive.
       await prisma.enrollment.updateMany({
         where: { studentId, classId: { not: null } },
