@@ -30,6 +30,7 @@ const getCurrentDay = () => {
 }
 
 const initialFormData = {
+    classId: '',
     subjectId: '',
     teacherId: '',
     dayOfWeek: '',
@@ -38,41 +39,337 @@ const initialFormData = {
     room: '',
 }
 
+// Select values are strings; ids off the API are numbers.
+const sameId = (a, b) => a != null && b != null && String(a) === String(b)
+
+// The API answers with { errors: { ... } }, so a clash message ("Teacher is
+// already scheduled in ...") only reaches the toast if we read that envelope.
+const apiError = (error, fallback) => {
+    const errors = error.response?.data?.errors
+    if (!errors) return fallback
+    return errors.message || Object.values(errors)[0] || fallback
+}
+
+// ── Lecture dialog ────────────────────────────────────────────────────────────
+// Shared by both tabs. A lecture always belongs to a class and may name a
+// teacher, so whichever of the two the tab is already scoped to is fixed, and
+// the other is picked here.
+
+function LectureDialog({
+                           open,
+                           onOpenChange,
+                           editingEntry,
+                           fixedClassId,
+                           fixedTeacherId,
+                           classes,
+                           teachers,
+                           onSaved,
+                           initialForm = initialFormData,
+                       }) {
+    // Seeded once per open: the caller changes `key` when the dialog opens, so
+    // each open remounts with a fresh form rather than leaking the last one.
+    const [formData, setFormData] = useState(initialForm)
+    const [subjects, setSubjects] = useState([])
+    const [saving, setSaving] = useState(false)
+    const {toast} = useToast()
+
+    const classId = fixedClassId ?? formData.classId
+    // A lecture cannot be moved between classes after the fact — the update
+    // endpoint does not accept a classId, so the picker locks while editing.
+    const classLocked = Boolean(fixedClassId) || Boolean(editingEntry)
+
+    // Subjects belong to a class, so the list follows whichever class is chosen.
+    useEffect(() => {
+        if (!open || !classId) {
+            setSubjects([])
+            return
+        }
+        let cancelled = false
+        subjectsAPI.getAll({classId})
+            .then(res => { if (!cancelled) setSubjects(res.data.subjects || []) })
+            .catch(() => { if (!cancelled) setSubjects([]) })
+        return () => { cancelled = true }
+    }, [open, classId])
+
+    const handleClassChange = (value) => {
+        // The chosen subject belongs to the old class, so it cannot survive.
+        setFormData(f => ({...f, classId: value, subjectId: ''}))
+    }
+
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+
+        if (!classId) {
+            toast({variant: 'destructive', title: 'Pick a class', description: 'A lecture has to belong to a class.'})
+            return
+        }
+        if (!formData.subjectId) {
+            toast({variant: 'destructive', title: 'Pick a subject', description: 'Choose which subject is taught.'})
+            return
+        }
+
+        setSaving(true)
+        try {
+            const teacherId = formData.teacherId && formData.teacherId !== 'none' ? formData.teacherId : null
+            const data = {
+                subjectId: formData.subjectId,
+                teacherId,
+                dayOfWeek: formData.dayOfWeek,
+                startTime: formData.startTime,
+                endTime: formData.endTime,
+                room: formData.room,
+            }
+
+            if (editingEntry) {
+                await timetableAPI.update(editingEntry.id, data)
+                toast({title: 'Success', description: 'Timetable entry updated successfully'})
+            } else {
+                await timetableAPI.create({...data, classId})
+                toast({title: 'Success', description: 'Timetable entry created successfully'})
+            }
+            onOpenChange(false)
+            onSaved()
+        } catch (error) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: apiError(error, 'Failed to save timetable entry'),
+            })
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const selectedClass = classes?.find(c => sameId(c.id, classId))
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="text-lg">
+                        {editingEntry ? 'Edit Lecture' : 'Add Lecture'}
+                        {selectedClass ? ` - ${selectedClass.name}` : ''}
+                    </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {!fixedClassId && (
+                        <div className="space-y-2">
+                            <Label>Class *</Label>
+                            <Select
+                                value={formData.classId ? String(formData.classId) : ''}
+                                onValueChange={handleClassChange}
+                                disabled={classLocked}
+                            >
+                                <SelectTrigger><SelectValue placeholder="Select class"/></SelectTrigger>
+                                <SelectContent>
+                                    {(classes || []).map((cls) => (
+                                        <SelectItem key={cls.id} value={String(cls.id)}>{cls.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {classLocked && editingEntry && (
+                                <p className="text-xs text-muted-foreground">
+                                    A lecture stays with its class. Delete it and add it again to move it.
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        <Label>Day *</Label>
+                        <Select value={formData.dayOfWeek} onValueChange={(v) => setFormData({...formData, dayOfWeek: v})}>
+                            <SelectTrigger><SelectValue placeholder="Select day"/></SelectTrigger>
+                            <SelectContent>
+                                {DAYS.map((day) => (
+                                    <SelectItem key={day} value={day}>{DAY_LABELS[day]}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Subject *</Label>
+                        <Select
+                            value={formData.subjectId ? String(formData.subjectId) : ''}
+                            onValueChange={(v) => setFormData({...formData, subjectId: v})}
+                            disabled={!classId}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder={classId ? 'Select subject' : 'Pick a class first'}/>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {subjects.map((subject) => (
+                                    <SelectItem key={subject.id} value={String(subject.id)}>{subject.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {classId && subjects.length === 0 && (
+                            <p className="text-xs text-muted-foreground">
+                                This class has no subjects yet. Add them on the Subjects page.
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Teacher</Label>
+                        <Select
+                            value={formData.teacherId ? String(formData.teacherId) : ''}
+                            onValueChange={(v) => setFormData({...formData, teacherId: v})}
+                            disabled={Boolean(fixedTeacherId)}
+                        >
+                            <SelectTrigger><SelectValue placeholder="Select teacher (optional)"/></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">No teacher assigned</SelectItem>
+                                {(teachers || []).map((teacher) => (
+                                    <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Start Time *</Label>
+                            <Input type="time" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} required/>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>End Time *</Label>
+                            <Input type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} required/>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label>Room</Label>
+                        <Input value={formData.room} onChange={(e) => setFormData({...formData, room: e.target.value})} placeholder="e.g., Room 101"/>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+                        <Button type="submit" disabled={saving}>{editingEntry ? 'Update' : 'Add'} Lecture</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    )
+}
+
+// Seeds the dialog's form from an entry being edited, or from a blank slot.
+const formFor = (entry, day, {classId, teacherId}) => entry
+    ? {
+        classId: entry.classId || classId || '',
+        subjectId: entry.subjectId || '',
+        teacherId: entry.teacherId || 'none',
+        dayOfWeek: entry.dayOfWeek,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+        room: entry.room || '',
+    }
+    : {
+        ...initialFormData,
+        classId: classId || '',
+        teacherId: teacherId || '',
+        dayOfWeek: day || getCurrentDay(),
+    }
+
+// A single lecture card, with its edit/delete affordances on hover.
+function EntryCard({entry, secondary, onEdit, onDelete}) {
+    return (
+        <div className="card p-2.5 text-sm group relative transition-all hover:bg-primary/[0.07] hover:shadow-sm">
+            <div className="font-medium text-foreground leading-snug pr-8">{entry.subject?.name}</div>
+            <div className="text-xs text-primary flex items-center gap-1 mt-1">
+                <Clock className="h-3 w-3 shrink-0"/>
+                {entry.startTime} – {entry.endTime}
+            </div>
+            {secondary}
+            {entry.room && (
+                <div className="text-xs text-muted-foreground">Room {entry.room}</div>
+            )}
+            <div className="absolute top-1.5 right-1.5 hidden group-hover:flex gap-0.5">
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-primary/10" onClick={() => onEdit(entry)}>
+                    <Pencil className="h-3 w-3"/>
+                </Button>
+                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10" onClick={() => onDelete(entry.id)}>
+                    <Trash2 className="h-3 w-3 text-destructive"/>
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+// The Mon–Sat grid, shared by both tabs.
+function WeekGrid({timetable, renderSecondary, onEdit, onDelete, onAdd}) {
+    return (
+        <div className="overflow-x-auto">
+            <div className="grid grid-cols-6 gap-2 min-w-[800px]">
+                {DAYS.map((day) => {
+                    const entries = (timetable[day] || []).sort((a, b) => a.startTime.localeCompare(b.startTime))
+                    return (
+                        <div key={day} className="space-y-2 rounded-xl p-1.5 transition-colors">
+                            <div className="p-2.5 rounded-lg text-center font-semibold text-sm tracking-tight bg-muted/60 text-foreground">
+                                {DAY_LABELS[day]}
+                            </div>
+                            <div className="space-y-1.5 min-h-[300px]">
+                                {entries.map((entry) => (
+                                    <EntryCard
+                                        key={entry.id}
+                                        entry={entry}
+                                        secondary={renderSecondary(entry)}
+                                        onEdit={onEdit}
+                                        onDelete={onDelete}
+                                    />
+                                ))}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full border border-dashed border-muted-foreground/25 text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+                                    onClick={() => onAdd(day)}
+                                >
+                                    <Plus className="h-4 w-4"/>
+                                </Button>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+function Placeholder({icon: Icon, message, spinner}) {
+    return (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+            {spinner ? (
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary"/>
+            ) : (
+                <div className="rounded-full bg-muted p-3">
+                    <Icon className="h-5 w-5 text-muted-foreground"/>
+                </div>
+            )}
+            <p className="text-sm text-muted-foreground">{message}</p>
+        </div>
+    )
+}
+
 // ── Class Timetable Tab ────────────────────────────────────────────────────────
 
 function ClassTimetableTab() {
     const {classes} = useClasses()
     const {teachers} = useTeachers()
     const [timetable, setTimetable] = useState({})
-    const [subjects, setSubjects] = useState([])
     const [selectedClassId, setSelectedClassId] = useState('')
     const [loading, setLoading] = useState(false)
     const [dialogOpen, setDialogOpen] = useState(false)
     const [editingEntry, setEditingEntry] = useState(null)
-    const [formData, setFormData] = useState(initialFormData)
+    const [seed, setSeed] = useState(initialFormData)
     const {toast} = useToast()
 
     useEffect(() => {
-        if (classes.length > 0 && !selectedClassId) {
-            setSelectedClassId(classes[0].id)
-        }
+        if (classes.length > 0 && !selectedClassId) setSelectedClassId(classes[0].id)
     }, [classes])
 
     useEffect(() => {
-        if (selectedClassId) {
-            fetchTimetable()
-            fetchSubjects()
-        }
+        if (selectedClassId) fetchTimetable()
     }, [selectedClassId])
-
-    const fetchSubjects = async () => {
-        try {
-            const response = await subjectsAPI.getAll({classId: selectedClassId})
-            setSubjects(response.data.subjects)
-        } catch (error) {
-            console.error('Failed to fetch subjects:', error)
-        }
-    }
 
     const fetchTimetable = async () => {
         setLoading(true)
@@ -86,54 +383,20 @@ function ClassTimetableTab() {
         }
     }
 
-    const handleOpenDialog = (entry = null, day = null) => {
-        if (entry) {
-            setEditingEntry(entry)
-            setFormData({
-                subjectId: entry.subjectId,
-                teacherId: entry.teacherId || '',
-                dayOfWeek: entry.dayOfWeek,
-                startTime: entry.startTime,
-                endTime: entry.endTime,
-                room: entry.room || '',
-            })
-        } else {
-            setEditingEntry(null)
-            setFormData({...initialFormData, dayOfWeek: day || ''})
-        }
+    const openDialog = (entry = null, day = null) => {
+        setEditingEntry(entry)
+        setSeed(formFor(entry, day, {classId: selectedClassId}))
         setDialogOpen(true)
     }
 
-    const handleSubmit = async (e) => {
-        e.preventDefault()
-        try {
-            const data = {
-                ...formData,
-                classId: selectedClassId,
-                teacherId: formData.teacherId && formData.teacherId !== 'none' ? formData.teacherId : null,
-            }
-            if (editingEntry) {
-                await timetableAPI.update(editingEntry.id, data)
-                toast({title: 'Success', description: 'Timetable entry updated successfully'})
-            } else {
-                await timetableAPI.create(data)
-                toast({title: 'Success', description: 'Timetable entry created successfully'})
-            }
-            setDialogOpen(false)
-            fetchTimetable()
-        } catch (error) {
-            toast({variant: 'destructive', title: 'Error', description: error.response?.data?.message || 'Operation failed'})
-        }
-    }
-
     const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this entry?')) return
+        if (!window.confirm('Are you sure you want to delete this timetable entry?')) return
         try {
             await timetableAPI.delete(id)
-            toast({title: 'Success', description: 'Entry deleted successfully'})
+            toast({title: 'Success', description: 'Timetable entry deleted successfully'})
             fetchTimetable()
         } catch (error) {
-            toast({variant: 'destructive', title: 'Error', description: error.response?.data?.message || 'Failed to delete entry'})
+            toast({variant: 'destructive', title: 'Error', description: apiError(error, 'Failed to delete entry')})
         }
     }
 
@@ -144,12 +407,11 @@ function ClassTimetableTab() {
             toast({title: 'Success', description: 'Timetable cleared successfully'})
             fetchTimetable()
         } catch (error) {
-            toast({variant: 'destructive', title: 'Error', description: 'Failed to clear timetable'})
+            toast({variant: 'destructive', title: 'Error', description: apiError(error, 'Failed to clear timetable')})
         }
     }
 
-    const selectedClass = classes.find(c => c.id === selectedClassId)
-    const currentDay = getCurrentDay()
+    const selectedClass = classes.find(c => sameId(c.id, selectedClassId))
 
     return (
         <>
@@ -158,16 +420,16 @@ function ClassTimetableTab() {
                 title={"Class Timetable"}
                 countLabel={selectedClass?.name}
                 addLabel={'Add Lecture'}
-                onAdd={() => handleOpenDialog()}
+                onAdd={() => openDialog()}
             >
-                <div className="flex  items-center justify-between mb-6 gap-3">
-                    <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+                <div className="flex items-center justify-between mb-6 gap-3">
+                    <Select value={selectedClassId ? String(selectedClassId) : ''} onValueChange={setSelectedClassId}>
                         <SelectTrigger className="w-full xs:w-35">
                             <SelectValue placeholder="Select class"/>
                         </SelectTrigger>
                         <SelectContent>
                             {classes.map((cls) => (
-                                <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                                <SelectItem key={cls.id} value={String(cls.id)}>{cls.name}</SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
@@ -175,132 +437,35 @@ function ClassTimetableTab() {
                         Clear All
                     </Button>
                 </div>
+
                 {!selectedClassId ? (
-                    <div className="flex flex-col items-center justify-center py-12 gap-3">
-                        <div className="rounded-full bg-muted p-3">
-                            <Calendar className="h-5 w-5 text-muted-foreground"/>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Please select a class to view/edit timetable</p>
-                    </div>
+                    <Placeholder icon={Calendar} message="Please select a class to view/edit timetable"/>
                 ) : loading ? (
-                    <div className="flex flex-col items-center justify-center py-12 gap-3">
-                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary"/>
-                        <p className="text-sm text-muted-foreground">Loading timetable...</p>
-                    </div>
+                    <Placeholder spinner message="Loading timetable..."/>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <div className="grid grid-cols-6 gap-2 min-w-[800px]">
-                            {DAYS.map((day) => {
-                                const entries = (timetable[day] || []).sort((a, b) => a.startTime.localeCompare(b.startTime))
-                                return (
-                                    <div key={day} className="space-y-2 rounded-xl p-1.5 transition-colors">
-                                        <div className="p-2.5 rounded-lg text-center font-semibold text-sm tracking-tight bg-muted/60 text-foreground">
-                                            {DAY_LABELS[day]}
-                                        </div>
-                                        <div className="space-y-1.5 min-h-[300px]">
-                                            {entries.map((entry) => (
-                                                <div key={entry.id} className="card p-2.5 text-sm group relative transition-all hover:bg-primary/[0.07] hover:shadow-sm">
-                                                    <div className="font-medium text-foreground leading-snug pr-8">{entry.subject?.name}</div>
-                                                    <div className="text-xs text-primary flex items-center gap-1 mt-1">
-                                                        <Clock className="h-3 w-3 shrink-0"/>
-                                                        {entry.startTime} – {entry.endTime}
-                                                    </div>
-                                                    {entry.teacher && (
-                                                        <div className="text-xs text-muted-foreground mt-0.5 truncate">{entry.teacher.name}</div>
-                                                    )}
-                                                    {entry.room && (
-                                                        <div className="text-xs text-muted-foreground">Room {entry.room}</div>
-                                                    )}
-                                                    <div className="absolute top-1.5 right-1.5 hidden group-hover:flex gap-0.5">
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-primary/10" onClick={() => handleOpenDialog(entry)}>
-                                                            <Pencil className="h-3 w-3"/>
-                                                        </Button>
-                                                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-destructive/10" onClick={() => handleDelete(entry.id)}>
-                                                            <Trash2 className="h-3 w-3 text-destructive"/>
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full border border-dashed border-muted-foreground/25 text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5"
-                                                onClick={() => handleOpenDialog(null, day)}
-                                            >
-                                                <Plus className="h-4 w-4"/>
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    </div>
+                    <WeekGrid
+                        timetable={timetable}
+                        renderSecondary={(entry) => entry.teacher && (
+                            <div className="text-xs text-muted-foreground mt-0.5 truncate">{entry.teacher.name}</div>
+                        )}
+                        onEdit={(entry) => openDialog(entry)}
+                        onDelete={handleDelete}
+                        onAdd={(day) => openDialog(null, day)}
+                    />
                 )}
             </PagePanel>
 
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="text-lg">
-                            {editingEntry ? 'Edit Lecture' : 'Add Lecture'} - {selectedClass?.name}
-                        </DialogTitle>
-                    </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Day *</Label>
-                            <Select value={formData.dayOfWeek} onValueChange={(v) => setFormData({...formData, dayOfWeek: v})}>
-                                <SelectTrigger><SelectValue placeholder="Select day"/></SelectTrigger>
-                                <SelectContent>
-                                    {DAYS.map((day) => (
-                                        <SelectItem key={day} value={day}>{DAY_LABELS[day]}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Subject *</Label>
-                            <Select value={formData.subjectId} onValueChange={(v) => setFormData({...formData, subjectId: v})}>
-                                <SelectTrigger><SelectValue placeholder="Select subject"/></SelectTrigger>
-                                <SelectContent>
-                                    {subjects.map((subject) => (
-                                        <SelectItem key={subject.id} value={subject.id}>{subject.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Teacher</Label>
-                            <Select value={formData.teacherId} onValueChange={(v) => setFormData({...formData, teacherId: v})}>
-                                <SelectTrigger><SelectValue placeholder="Select teacher (optional)"/></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">No teacher assigned</SelectItem>
-                                    {teachers.map((teacher) => (
-                                        <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Start Time *</Label>
-                                <Input type="time" value={formData.startTime} onChange={(e) => setFormData({...formData, startTime: e.target.value})} required/>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>End Time *</Label>
-                                <Input type="time" value={formData.endTime} onChange={(e) => setFormData({...formData, endTime: e.target.value})} required/>
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Room</Label>
-                            <Input value={formData.room} onChange={(e) => setFormData({...formData, room: e.target.value})} placeholder="e.g., Room 101"/>
-                        </div>
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit">{editingEntry ? 'Update' : 'Add'} Lecture</Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <LectureDialog
+                key={dialogOpen ? `${editingEntry?.id ?? 'new'}-${seed.dayOfWeek}` : 'closed'}
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                editingEntry={editingEntry}
+                fixedClassId={selectedClassId}
+                classes={classes}
+                teachers={teachers}
+                onSaved={fetchTimetable}
+                initialForm={seed}
+            />
         </>
     )
 }
@@ -308,22 +473,22 @@ function ClassTimetableTab() {
 // ── Teacher Timetable Tab ──────────────────────────────────────────────────────
 
 function TeacherTimetableTab() {
+    const {classes} = useClasses()
     const {teachers} = useTeachers()
     const [timetable, setTimetable] = useState({})
     const [selectedTeacherId, setSelectedTeacherId] = useState('')
     const [loading, setLoading] = useState(false)
+    const [dialogOpen, setDialogOpen] = useState(false)
+    const [editingEntry, setEditingEntry] = useState(null)
+    const [seed, setSeed] = useState(initialFormData)
     const {toast} = useToast()
 
     useEffect(() => {
-        if (teachers.length > 0 && !selectedTeacherId) {
-            setSelectedTeacherId(teachers[0].id)
-        }
+        if (teachers.length > 0 && !selectedTeacherId) setSelectedTeacherId(teachers[0].id)
     }, [teachers])
 
     useEffect(() => {
-        if (selectedTeacherId) {
-            fetchTimetable()
-        }
+        if (selectedTeacherId) fetchTimetable()
     }, [selectedTeacherId])
 
     const fetchTimetable = async () => {
@@ -338,80 +503,79 @@ function TeacherTimetableTab() {
         }
     }
 
-    const selectedTeacher = teachers.find(t => t.id === selectedTeacherId)
+    const openDialog = (entry = null, day = null) => {
+        setEditingEntry(entry)
+        setSeed(formFor(entry, day, {teacherId: selectedTeacherId}))
+        setDialogOpen(true)
+    }
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this timetable entry?')) return
+        try {
+            await timetableAPI.delete(id)
+            toast({title: 'Success', description: 'Timetable entry deleted successfully'})
+            fetchTimetable()
+        } catch (error) {
+            toast({variant: 'destructive', title: 'Error', description: apiError(error, 'Failed to delete entry')})
+        }
+    }
+
+    const selectedTeacher = teachers.find(t => sameId(t.id, selectedTeacherId))
 
     return (
-        <PagePanel
-            icon={User}
-            title={"Teacher Timetable"}
-            countLabel={selectedTeacher?.name}
-        >
-            <div className="mb-6">
-                <Select value={selectedTeacherId} onValueChange={setSelectedTeacherId}>
-                    <SelectTrigger className="w-full xs:w-48">
-                        <SelectValue placeholder="Select teacher"/>
-                    </SelectTrigger>
-                    <SelectContent>
-                        {teachers.map((teacher) => (
-                            <SelectItem key={teacher.id} value={teacher.id}>{teacher.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-            </div>
+        <>
+            <PagePanel
+                icon={User}
+                title={"Teacher Timetable"}
+                countLabel={selectedTeacher?.name}
+                addLabel={'Add Lecture'}
+                onAdd={() => openDialog()}
+            >
+                <div className="mb-6">
+                    <Select value={selectedTeacherId ? String(selectedTeacherId) : ''} onValueChange={setSelectedTeacherId}>
+                        <SelectTrigger className="w-full xs:w-48">
+                            <SelectValue placeholder="Select teacher"/>
+                        </SelectTrigger>
+                        <SelectContent>
+                            {teachers.map((teacher) => (
+                                <SelectItem key={teacher.id} value={String(teacher.id)}>{teacher.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
 
-            {!selectedTeacherId ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                    <div className="rounded-full bg-muted p-3">
-                        <User className="h-5 w-5 text-muted-foreground"/>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Please select a teacher to view their timetable</p>
-                </div>
-            ) : loading ? (
-                <div className="flex flex-col items-center justify-center py-12 gap-3">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary"/>
-                    <p className="text-sm text-muted-foreground">Loading timetable...</p>
-                </div>
-            ) : (
-                <div className="overflow-x-auto">
-                    <div className="grid grid-cols-6 gap-2 min-w-[800px]">
-                        {DAYS.map((day) => {
-                            const entries = (timetable[day] || []).sort((a, b) => a.startTime.localeCompare(b.startTime))
-                            return (
-                                <div key={day} className="space-y-2 rounded-xl p-1.5">
-                                    <div className="p-2.5 rounded-lg text-center font-semibold text-sm tracking-tight bg-muted/60 text-foreground">
-                                        {DAY_LABELS[day]}
-                                    </div>
-                                    <div className="space-y-1.5 min-h-[300px]">
-                                        {entries.length === 0 ? (
-                                            <div className="flex items-center justify-center h-16">
-                                                <span className="text-xs text-muted-foreground/40">—</span>
-                                            </div>
-                                        ) : entries.map((entry) => (
-                                            <div key={entry.id} className="card p-2.5 text-sm">
-                                                <div className="font-medium text-foreground leading-snug">{entry.subject?.name}</div>
-                                                <div className="text-xs text-primary flex items-center gap-1 mt-1">
-                                                    <Clock className="h-3 w-3 shrink-0"/>
-                                                    {entry.startTime} – {entry.endTime}
-                                                </div>
-                                                {entry.class && (
-                                                    <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                                                        <BookOpen className="h-3 w-3 shrink-0"/>
-                                                        {entry.class.name}
-                                                    </div>
-                                                )}
-                                                {entry.room && (
-                                                    <div className="text-xs text-muted-foreground">Room {entry.room}</div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
-        </PagePanel>
+                {!selectedTeacherId ? (
+                    <Placeholder icon={User} message="Please select a teacher to view their timetable"/>
+                ) : loading ? (
+                    <Placeholder spinner message="Loading timetable..."/>
+                ) : (
+                    <WeekGrid
+                        timetable={timetable}
+                        renderSecondary={(entry) => entry.class && (
+                            <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                <BookOpen className="h-3 w-3 shrink-0"/>
+                                {entry.class.name}
+                            </div>
+                        )}
+                        onEdit={(entry) => openDialog(entry)}
+                        onDelete={handleDelete}
+                        onAdd={(day) => openDialog(null, day)}
+                    />
+                )}
+            </PagePanel>
+
+            <LectureDialog
+                key={dialogOpen ? `${editingEntry?.id ?? 'new'}-${seed.dayOfWeek}` : 'closed'}
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                editingEntry={editingEntry}
+                fixedTeacherId={selectedTeacherId}
+                classes={classes}
+                teachers={teachers}
+                onSaved={fetchTimetable}
+                initialForm={seed}
+            />
+        </>
     )
 }
 
