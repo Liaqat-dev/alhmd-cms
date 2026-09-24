@@ -12,7 +12,8 @@
     "prisma:studio": "prisma studio",
     "db:reset": "node prisma/reset.js",
     "seed": "node prisma/seed.js",
-    "seed:classes": "node prisma/seedClassesAndSubjects.js"
+    "seed:classes": "node prisma/seedClassesAndSubjects.js",
+    "seed:students": "node prisma/seedStudents.js"
   },
   "dependencies": {
     "@getbrevo/brevo": "^6.0.3",

@@ -12,4 +12,8 @@ router.get('/admin', roleCheck('ADMIN'), dashboardController.getAdminStats);
 router.get('/teacher', roleCheck('TEACHER'), dashboardController.getTeacherStats);
 router.get('/student', roleCheck('STUDENT'), dashboardController.getStudentDashboard);
 
+// Shared by the admin and teacher dashboards — the controller scopes the
+// selectable classes to whoever is asking.
+router.get('/attendance-week', roleCheck('ADMIN', 'TEACHER'), dashboardController.getWeeklyAttendance);
+
 module.exports = router;

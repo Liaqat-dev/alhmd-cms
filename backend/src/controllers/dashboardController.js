@@ -7,7 +7,7 @@ const getAdminStats = catchAsync(async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [totalStudents, passedOutStudents, totalTeachers, totalClasses, recentEnrollments, classStats, todayAttendance] = await Promise.all([
+  const [totalStudents, passedOutStudents, totalTeachers, totalClasses, classStats, todayAttendance] = await Promise.all([
     prisma.enrollment.count({ where: ACTIVE_ENROLLMENT }),
     // Counted off Student, not Enrollment: an alumnus who was never enrolled
     // in a class still belongs in this total, and the two never double-count
@@ -15,15 +15,6 @@ const getAdminStats = catchAsync(async (req, res) => {
     prisma.student.count({ where: { status: 'PASSED_OUT' } }),
     prisma.teacher.count(),
     prisma.class.count(),
-    prisma.enrollment.findMany({
-      take: 5,
-      where: ACTIVE_ENROLLMENT,
-      orderBy: { enrolledAt: 'desc' },
-      include: {
-        student: { select: { id: true, name: true, rollNumber: true, profilePicUrl: true } },
-        class: { select: { name: true } }
-      }
-    }),
     prisma.class.findMany({
       include: { _count: { select: { enrollments: { where: ACTIVE_ENROLLMENT } } } },
       orderBy: { name: 'asc' }
@@ -43,13 +34,6 @@ const getAdminStats = catchAsync(async (req, res) => {
 
   res.json({
     stats: { totalStudents, passedOutStudents, totalTeachers, totalClasses, todayAttendance: attendanceOverview },
-    recentStudents: recentEnrollments.map(e => ({
-      id: e.student.id,
-      name: e.student.name,
-      rollNumber: e.student.rollNumber,
-      profilePicUrl: e.student.profilePicUrl || null,
-      class: { name: e.class.name }
-    })),
     classStats: classStats.map(c => ({
       id: c.id, name: c.name, gradeLevel: c.gradeLevel, studentCount: c._count.enrollments
     }))
@@ -266,4 +250,168 @@ const getStudentDashboard = catchAsync(async (req, res) => {
   });
 });
 
-module.exports = { getAdminStats, getTeacherStats, getStudentDashboard };
+// ── Recent attendance ─────────────────────────────────────────────────────────
+// Feeds the attendance chart on the admin and teacher dashboards.
+//
+// A day with nothing marked and a day where everyone was absent are completely
+// different facts, and the old "today's attendance" card could not tell them
+// apart. `marked` carries that distinction so the chart can draw an empty
+// track for an unmarked day instead of a misleading 0% bar.
+
+// The window is a rolling seven days ending today, so it always covers each
+// weekday exactly once — which is what lets the timetable still decide which
+// of those dates are teaching days.
+const RANGE_DAYS = 7;
+
+// Indexed by JS getDay(): 0 = Sunday.
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_NAMES = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+// The chart is scoped by one of: a class id, a grade level, or everything the
+// user can see. Grades reuse the GradeLevel enum spelling so the dropdown
+// value, the API value and the column value are all the same string.
+const ALL_CLASSES = 'all';
+const GRADE_SCOPES = { GRADE_11: 'Grade 11', GRADE_12: 'Grade 12' };
+
+// Local midnight `back` days ago. Attendance rows are written at local
+// midnight (see attendanceController), so the range has to be built the same
+// way or the edges land on the wrong day.
+const startOfDayAgo = (back) => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - back);
+  return d;
+};
+
+// The classes this user may chart: every class for an admin, only the ones
+// they actually teach for a teacher.
+const chartableClasses = async (user) => {
+  if (user.role === 'ADMIN') {
+    return prisma.class.findMany({
+      select: { id: true, name: true, gradeLevel: true },
+      orderBy: { name: 'asc' }
+    });
+  }
+
+  const teacherId = user.teacher?.id;
+  if (!teacherId) return [];
+
+  const assignments = await prisma.subjectTeacher.findMany({
+    where: { teacherId },
+    select: { subject: { select: { classes: { select: { id: true, name: true, gradeLevel: true } } } } }
+  });
+
+  // A subject can span several classes, and a teacher can hold several
+  // subjects in one class — flatten and de-duplicate by id.
+  const byId = new Map();
+  assignments.forEach(a => (a.subject.classes || []).forEach(c => byId.set(c.id, c)));
+  return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+};
+
+// Resolves the requested scope against what this user may actually chart.
+// Anything unrecognised — an unknown id, a class they do not teach, a junk
+// string — degrades to the full aggregate rather than erroring or, worse,
+// silently charting somebody else's class.
+const resolveScope = (requested, classes) => {
+  if (requested && requested !== ALL_CLASSES) {
+    if (GRADE_SCOPES[requested]) {
+      return {
+        key: requested,
+        label: GRADE_SCOPES[requested],
+        ids: classes.filter(c => c.gradeLevel === requested).map(c => c.id)
+      };
+    }
+    const one = classes.find(c => c.id === parseInt(requested, 10));
+    if (one) return { key: one.id, label: one.name, ids: [one.id] };
+  }
+  return { key: ALL_CLASSES, label: 'All classes', ids: classes.map(c => c.id) };
+};
+
+// GET /dashboard/attendance-week?classId=<id|GRADE_11|GRADE_12|all>
+const getWeeklyAttendance = catchAsync(async (req, res) => {
+  const classes = await chartableClasses(req.user);
+
+  // Rolling window: the six days before today, plus today.
+  const rangeStart = startOfDayAgo(RANGE_DAYS - 1);
+  const rangeEnd = startOfDayAgo(-1);   // exclusive: tomorrow 00:00
+
+  if (classes.length === 0) {
+    return res.json({ classes: [], classId: null, className: null, rangeStart, rangeEnd, days: [] });
+  }
+
+  // Scoping by an explicit id list rather than dropping the filter is what
+  // keeps a teacher's aggregate to their own classes.
+  const scope = resolveScope(req.query.classId, classes);
+  const scopeIds = scope.ids;
+
+  const rows = await prisma.attendance.groupBy({
+    by: ['date', 'status'],
+    where: { classId: { in: scopeIds }, date: { gte: rangeStart, lt: rangeEnd } },
+    _count: { status: true }
+  });
+
+  // Index by day offset so a missing day stays missing rather than defaulting.
+  const byOffset = new Map();
+  for (const row of rows) {
+    const offset = Math.round((new Date(row.date) - rangeStart) / 86400000);
+    if (offset < 0 || offset >= RANGE_DAYS) continue;
+    if (!byOffset.has(offset)) byOffset.set(offset, { present: 0, absent: 0, leave: 0 });
+    const bucket = byOffset.get(offset);
+    if (row.status === 'PRESENT') bucket.present += row._count.status;
+    else if (row.status === 'ABSENT') bucket.absent += row._count.status;
+    else if (row.status === 'LEAVE') bucket.leave += row._count.status;
+  }
+
+  // Which weekdays this scope actually teaches, per the timetable.
+  const scheduled = await prisma.timetable.findMany({
+    where: { classId: { in: scopeIds } },
+    select: { dayOfWeek: true },
+    distinct: ['dayOfWeek']
+  });
+  const taught = new Set(scheduled.map(t => t.dayOfWeek));
+  const fromTimetable = taught.size > 0;
+
+  // Walk the window oldest to newest so the chart reads left to right and
+  // ends on today.
+  const days = [];
+  for (let offset = 0; offset < RANGE_DAYS; offset++) {
+    const date = new Date(rangeStart);
+    date.setDate(date.getDate() + offset);
+
+    const bucket = byOffset.get(offset);
+    const counts = bucket || { present: 0, absent: 0, leave: 0 };
+    const total = counts.present + counts.absent + counts.leave;
+
+    // A date earns its column by being a teaching day, or by having
+    // attendance against it — a make-up class on an untaught day still
+    // happened, so recorded fact wins over the schedule. With no timetable at
+    // all, every day of the window is shown rather than a guessed week.
+    const isTaught = taught.has(DAY_NAMES[date.getDay()]);
+    if (fromTimetable && !isTaught && total === 0) continue;
+
+    days.push({
+      day: WEEKDAY_LABELS[date.getDay()],
+      date,
+      ...counts,
+      total,
+      marked: total > 0
+    });
+  }
+
+  res.json({
+    classes,
+    classId: scope.key,
+    className: scope.label,
+    // A grade with no classes behind it is a real state the chart has to be
+    // able to explain, so say how many classes the scope actually covers.
+    scopeClassCount: scopeIds.length,
+    // False means no timetable exists for this scope, so every day of the
+    // window is shown rather than only its teaching days.
+    daysFromTimetable: fromTimetable,
+    rangeStart,
+    rangeEnd,
+    days
+  });
+});
+
+module.exports = { getAdminStats, getTeacherStats, getStudentDashboard, getWeeklyAttendance };

@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { announcementsAPI, dashboardAPI } from '@/services/api'
 import UserAvatar from '@/components/shared/UserAvatar'
+import AttendanceWeekChart from '@/components/shared/AttendanceWeekChart'
 import {
     BookOpen, Users, ClipboardList, CheckCircle2,
-    XCircle, Clock, Megaphone, School, ChevronRight,
+    XCircle, Clock, Megaphone, School, ChevronRight, ClipboardCheck,
 } from 'lucide-react'
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
@@ -235,6 +236,9 @@ export default function TeacherDashboard() {
     const [teacherStats, setTeacherStats] = useState(null)
     const [announcements, setAnnouncements] = useState([])
     const [loading, setLoading] = useState(true)
+    const [week, setWeek] = useState(null)
+    const [weekLoading, setWeekLoading] = useState(true)
+    const [weekClassId, setWeekClassId] = useState(null)
 
     useEffect(() => {
         const fetch = async () => {
@@ -254,6 +258,27 @@ export default function TeacherDashboard() {
         }
         fetch()
     }, [])
+
+    // Separate from the main fetch so changing the class re-queries only the
+    // chart. The endpoint scopes the class list to this teacher's own classes.
+    useEffect(() => {
+        let cancelled = false
+        const fetchWeek = async () => {
+            setWeekLoading(true)
+            try {
+                const res = await dashboardAPI.getWeeklyAttendance(weekClassId ? { classId: weekClassId } : {})
+                if (cancelled) return
+                setWeek(res.data)
+                if (weekClassId === null && res.data.classId) setWeekClassId(res.data.classId)
+            } catch {
+                // fail gracefully — the rest of the dashboard still renders
+            } finally {
+                if (!cancelled) setWeekLoading(false)
+            }
+        }
+        fetchWeek()
+        return () => { cancelled = true }
+    }, [weekClassId])
 
     if (loading) {
         return (
@@ -286,6 +311,35 @@ export default function TeacherDashboard() {
 
                     {/* Stats row */}
                     <StatRow stats={stats} />
+
+                    {/* Weekly attendance */}
+                    <div className="rounded-2xl border border-border bg-card shadow-sm">
+                        <div className="flex items-center justify-between gap-4 px-5 pt-5 pb-4 border-b border-border/50">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                                    <ClipboardCheck className="h-4 w-4 text-primary" strokeWidth={2} />
+                                </div>
+                                <div>
+                                    <h2 className="tch-display text-lg font-bold text-foreground tracking-tight">
+                                        Attendance
+                                    </h2>
+                                    <p className="text-xs text-muted-foreground mt-0.5">This week, by day</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-5">
+                            <AttendanceWeekChart
+                                days={week?.days ?? []}
+                                classes={week?.classes ?? []}
+                                classId={weekClassId ?? week?.classId}
+                                scopeLabel={week?.className}
+                                scopeClassCount={week?.scopeClassCount}
+                                daysFromTimetable={week?.daysFromTimetable ?? true}
+                                onClassChange={setWeekClassId}
+                                loading={weekLoading}
+                            />
+                        </div>
+                    </div>
 
                     {/* Classes section */}
                     <div className="rounded-2xl border border-border bg-card shadow-sm">

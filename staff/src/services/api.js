@@ -108,6 +108,7 @@ export const dashboardAPI = {
   getAdminStats: () => api.get('/dashboard/admin'),
   getTeacherStats: () => api.get('/dashboard/teacher'),
   getStudentDashboard: () => api.get('/dashboard/student'),
+  getWeeklyAttendance: (params) => api.get('/dashboard/attendance-week', { params }),
 }
 
 // Students API

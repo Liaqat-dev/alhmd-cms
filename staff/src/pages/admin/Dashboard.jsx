@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { dashboardAPI } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
-import UserAvatar from '@/components/shared/UserAvatar'
+import AttendanceWeekChart from '@/components/shared/AttendanceWeekChart'
 import {
   Users,
   GraduationCap,
@@ -15,6 +15,7 @@ import {
   Palmtree,
   TrendingUp,
   CalendarDays,
+  ClipboardCheck,
 } from 'lucide-react'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -111,6 +112,9 @@ export default function AdminDashboard() {
   const { user } = useAuth()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [week, setWeek] = useState(null)
+  const [weekLoading, setWeekLoading] = useState(true)
+  const [weekClassId, setWeekClassId] = useState(null)
 
   const adminName = user?.admin?.name?.split(' ')[0] || 'Admin'
 
@@ -127,6 +131,28 @@ export default function AdminDashboard() {
     }
     fetchStats()
   }, [])
+
+  // Re-fetched per class rather than filtered client-side: only the selected
+  // class's week is ever needed, and the server already scopes the class list.
+  useEffect(() => {
+    let cancelled = false
+    const fetchWeek = async () => {
+      setWeekLoading(true)
+      try {
+        const res = await dashboardAPI.getWeeklyAttendance(weekClassId ? { classId: weekClassId } : {})
+        if (cancelled) return
+        setWeek(res.data)
+        // First load: adopt whichever class the server picked.
+        if (weekClassId === null && res.data.classId) setWeekClassId(res.data.classId)
+      } catch (error) {
+        if (!cancelled) console.error('Failed to fetch weekly attendance:', error)
+      } finally {
+        if (!cancelled) setWeekLoading(false)
+      }
+    }
+    fetchWeek()
+    return () => { cancelled = true }
+  }, [weekClassId])
 
   if (loading) {
     return (
@@ -284,48 +310,30 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Students */}
+          {/* Weekly attendance */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Recent Students</CardTitle>
-                  <CardDescription>Latest enrollments</CardDescription>
+                  <CardTitle>Attendance</CardTitle>
+                  <CardDescription>This week, by day</CardDescription>
                 </div>
                 <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-primary-500/8 dark:bg-primary-500/15">
-                  <GraduationCap className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                  <ClipboardCheck className="h-4 w-4 text-primary-600 dark:text-primary-400" />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              {stats?.recentStudents?.length ? (
-                <div className="space-y-1">
-                  {stats.recentStudents.map((student) => (
-                    <div
-                      key={student.id}
-                      className={cn(
-                        'flex items-center gap-3 p-2.5 rounded-xl transition-colors duration-100',
-                        'hover:bg-primary-500/[0.04] dark:hover:bg-primary-500/[0.07]'
-                      )}
-                    >
-                      <UserAvatar name={student.name} profilePicUrl={student.profilePicUrl} size="md" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 dark:text-dark-100 truncate leading-tight">
-                          {student.name}
-                        </p>
-                        <p className="text-xs text-gray-400 dark:text-dark-500 mt-0.5">
-                          {student.rollNumber}
-                        </p>
-                      </div>
-                      <span className="text-xs font-medium text-gray-500 dark:text-dark-400 bg-gray-100 dark:bg-dark-800 px-2.5 py-1 rounded-lg shrink-0">
-                        {student.class?.name ?? '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <EmptyState icon={GraduationCap} message="No students yet" />
-              )}
+              <AttendanceWeekChart
+                days={week?.days ?? []}
+                classes={week?.classes ?? []}
+                classId={weekClassId ?? week?.classId}
+                scopeLabel={week?.className}
+                scopeClassCount={week?.scopeClassCount}
+                daysFromTimetable={week?.daysFromTimetable ?? true}
+                onClassChange={setWeekClassId}
+                loading={weekLoading}
+              />
             </CardContent>
           </Card>
 
