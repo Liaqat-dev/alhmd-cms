@@ -52,16 +52,17 @@ async function getOrCreateFolder(drive, name, parentId) {
 
 /**
  * Finds the student's folder (named after their roll number), nested under
- * an academic-year folder under the configured root folder — creating
- * either level that doesn't exist yet.
+ * program and academic-year folders under the configured root folder —
+ * creating any level that doesn't exist yet.
  * @returns {Promise<string>} the roll-number folder's Drive file id
  */
-async function getOrCreateStudentFolder(rollNumber, academicYear) {
+async function getOrCreateStudentFolder(rollNumber, academicYear, program) {
   if (!ROOT_FOLDER_ID) throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID is not configured');
   const drive = getDrive();
 
   const yearFolderId = await getOrCreateFolder(drive, academicYear || 'Unassigned', ROOT_FOLDER_ID);
-  return getOrCreateFolder(drive, rollNumber, yearFolderId);
+  const programFolderId = await getOrCreateFolder(drive, program || 'Unassigned', yearFolderId);
+  return getOrCreateFolder(drive, rollNumber, programFolderId);
 }
 
 /**
