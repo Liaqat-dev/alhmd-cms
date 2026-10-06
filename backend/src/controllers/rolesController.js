@@ -2,6 +2,7 @@ const prisma = require('../lib/prisma');
 const AppError = require('../utils/AppError');
 const catchAsync = require('../utils/catchAsync');
 const { parseId, parseIds } = require('../utils/helpers');
+const { SUPER_ADMIN_ROLE } = require('../utils/superAdmin');
 
 // ── Roles ─────────────────────────────────────────────────────────────────────
 
@@ -59,6 +60,9 @@ const updateRole = catchAsync(async (req, res) => {
 
   const existing = await prisma.role.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Role not found');
+  if (existing.name === SUPER_ADMIN_ROLE) {
+    throw new AppError(403, 'The super_admin role is protected and cannot be modified');
+  }
 
   if (name !== undefined) {
     const dup = await prisma.role.findFirst({
@@ -88,6 +92,9 @@ const deleteRole = catchAsync(async (req, res) => {
 
   const existing = await prisma.role.findUnique({ where: { id } });
   if (!existing) throw new AppError(404, 'Role not found');
+  if (existing.name === SUPER_ADMIN_ROLE) {
+    throw new AppError(403, 'The super_admin role is protected and cannot be deleted');
+  }
 
   await prisma.role.delete({ where: { id } });
 

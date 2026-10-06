@@ -145,6 +145,7 @@ model User {
   password           String
   role               UserAccountRole
   isVerified         Boolean         @default(false)
+  isSuperAdmin       Boolean         @default(false) // set only by prisma/seedProduction.js, never via the API
   profilePicUrl      String?
   profilePicPublicId String?
   createdAt          DateTime        @default(now())
